@@ -126,6 +126,7 @@ import ServiceFPS from './services/fps'
 import ServiceEvents from './services/events'
 import ServiceChildren from './services/children'
 import ServiceRemoteConfiguration from './services/remote_configuration'
+import ServiceDbValues from './services/db_values'
 
 window.screen_width  = window.innerWidth
 window.screen_height = window.innerHeight
@@ -370,7 +371,9 @@ function initClass(){
         ContentRows,
         Emit,
         Router,
-        Timer
+        Router,
+        Timer,
+        DbValues: ServiceDbValues
     }
 }
 

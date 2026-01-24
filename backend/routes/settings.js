@@ -20,8 +20,8 @@ module.exports = {
                 res.end(JSON.stringify(rows));
             });
         } else if (req.method === 'POST') {
-            const { key, value } = req.body;
-            db.run(`INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, [key, value], function(err) {
+            const { key, value, visible } = req.body;
+            db.run(`INSERT INTO settings(key, value, visible) VALUES(?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, visible=excluded.visible`, [key, value, visible], function(err) {
                 if (err) {
                     console.log(err.message);
                     res.writeHead(500, { 'Content-Type': 'application/json' });
