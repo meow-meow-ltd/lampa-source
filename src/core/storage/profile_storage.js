@@ -59,31 +59,6 @@ function normalizeValue(key, value){
     return value
 }
 
-function readLocalValue(key){
-    if(!window.localStorage) return null
-
-    let raw = window.localStorage.getItem(key)
-
-    if(raw === null) return null
-
-    return normalizeValue(key, raw)
-}
-
-function shouldMigrate(profile_id){
-    let list = Arrays.decodeJson(window.localStorage.getItem(migration_key), [])
-
-    return list.indexOf(profile_id) === -1
-}
-
-function markMigrated(profile_id){
-    let list = Arrays.decodeJson(window.localStorage.getItem(migration_key), [])
-
-    if(list.indexOf(profile_id) === -1){
-        list.push(profile_id)
-        window.localStorage.setItem(migration_key, JSON.stringify(list))
-    }
-}
-
 function ensureProfile(){
     if(window.Lampa && Lampa.Account && Lampa.Account.Profile && Lampa.Account.Permit){
         if(Lampa.Account.Permit.access && !Lampa.Account.Permit.profileId){
@@ -109,30 +84,16 @@ function load(){
         let keys = Object.keys(PROFILE_KEYS)
 
         return Promise.all(keys.map((key)=>ProfileSettings.get(key))).then((values)=>{
-            let migrate = shouldMigrate(profile_id)
-
             keys.forEach((key, index)=>{
                 let value = normalizeValue(key, values[index])
 
                 if(value === null){
-                    if(migrate){
-                        let local = readLocalValue(key)
-
-                        if(local !== null){
-                            Storage.set(key, local, true)
-                            ProfileSettings.set(key, local)
-                            return
-                        }
-                    }
-
                     Storage.set(key, emptyValue(key), true)
                     return
                 }
 
                 Storage.set(key, value, true)
             })
-
-            if(migrate) markMigrated(profile_id)
         })
     }).finally(()=>{
         loading = false
