@@ -810,7 +810,7 @@ trigger('adult_content_view', false)
 /**
  * Добовляем поля
  */
-select('jackett_url','','')
+select(SETTINGS_KEYS.JACKETT_URL,'','')
 select('jackett_key','','')
 select('jackett_url_two','','')
 select('jackett_key_two','','')

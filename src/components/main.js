@@ -26,6 +26,13 @@ function component(object){
                         Lampa.Storage.set(SETTINGS_KEYS.TORRSERVER_URL, url)
                     }
                 })
+
+                Lampa.DbValues.get(SETTINGS_KEYS.JACKETT_URL, (url) => {
+                    if (url) {
+                        Lampa.Storage.set('parser_use', 1)
+                        Lampa.Storage.set(SETTINGS_KEYS.JACKETT_URL, url)
+                    }
+                })
             }
         },
         onNext: function(resolve, reject){

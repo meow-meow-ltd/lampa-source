@@ -29,6 +29,30 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             margin-bottom: 20px;
         }
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 10px 16px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #1e272e;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .tab-button.active {
+            background: #6c5ce7;
+            border-color: #6c5ce7;
+        }
+        .tab-panel {
+            display: none;
+        }
+        .tab-panel.active {
+            display: block;
+        }
         .form-group {
             display: flex;
             gap: 10px;
@@ -87,6 +111,9 @@
         .val-col { width: 35%; }
         .vis-col { width: 10%; text-align: center; font-weight: bold; }
         .act-col { width: 15%; text-align: right; }
+        .id-col { width: 8%; color: #dfe6e9; }
+        .sort-col { width: 12%; }
+        .flag-col { width: 8%; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -98,21 +125,56 @@
         
 
 
-        <div class="card">
-            <h3>Current Settings</h3>
-            <table id="settingsTable">
-                <thead>
-                    <tr>
-                        <th class="column-name">Key</th>
-                        <th class="column-name">Value</th>
-                        <th class="column-name">Visible</th>
-                        <th class="column-name">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Settings will be loaded here -->
-                </tbody>
-            </table>
+        <div class="tabs">
+            <button class="tab-button active" data-tab="settings">Settings</button>
+            <button class="tab-button" data-tab="profiles">Profiles</button>
+        </div>
+
+        <div id="tab-settings" class="tab-panel active">
+            <div class="card">
+                <h3>Current Settings</h3>
+                <table id="settingsTable">
+                    <thead>
+                        <tr>
+                            <th class="column-name">Key</th>
+                            <th class="column-name">Value</th>
+                            <th class="column-name">Visible</th>
+                            <th class="column-name">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Settings will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-profiles" class="tab-panel">
+            <div class="card">
+                <h3>Profiles</h3>
+                <div class="form-group">
+                    <input type="text" id="newProfileName" placeholder="Name">
+                    <input type="text" id="newProfileIcon" placeholder="Icon (e.g. l_1)">
+                    <input type="number" id="newProfileSort" placeholder="Sort">
+                    <button onclick="createProfile()">Add</button>
+                </div>
+                <table id="profilesTable">
+                    <thead>
+                        <tr>
+                            <th class="column-name">ID</th>
+                            <th class="column-name">Icon</th>
+                            <th class="column-name">Name</th>
+                            <th class="column-name">Sort</th>
+                            <th class="column-name">Main</th>
+                            <th class="column-name">Child</th>
+                            <th class="column-name">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Profiles will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -171,8 +233,114 @@
             }
         }
 
+        async function loadProfiles() {
+            try {
+                const res = await fetch('/api/profiles/all');
+                if (res.status === 401) {
+                    window.location.reload();
+                    return;
+                }
+                const data = await res.json();
+                const tbody = document.querySelector('#profilesTable tbody');
+                tbody.innerHTML = '';
+
+                if (!data.secuses) return;
+
+                data.profiles.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="id-col">${item.id}</td>
+                        <td class="val-col">
+                            <input type="text" id="icon-${item.id}" value="${item.icon || ''}" style="width: 100%; box-sizing: border-box;">
+                        </td>
+                        <td class="val-col">
+                            <input type="text" id="name-${item.id}" value="${item.name || ''}" style="width: 100%; box-sizing: border-box;">
+                        </td>
+                        <td class="sort-col">
+                            <input type="number" id="sort-${item.id}" value="${item.sort || 0}" style="width: 100%; box-sizing: border-box;">
+                        </td>
+                        <td class="flag-col">${item.main ? '+' : '-'}</td>
+                        <td class="flag-col">${item.child ? '+' : '-'}</td>
+                        <td class="act-col">
+                            <button class="btn-save" onclick="updateProfile(${item.id})" style="margin-right: 5px; background: #00b894;">Save</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Error loading profiles:', e);
+            }
+        }
+
+        async function updateProfile(id) {
+            const name = document.getElementById('name-' + id).value.trim();
+            const icon = document.getElementById('icon-' + id).value.trim();
+            const sort = parseInt(document.getElementById('sort-' + id).value);
+
+            const res = await fetch('/api/profiles/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, name, icon, sort })
+            });
+
+            if (res.ok) {
+                alert('Saved!');
+                loadProfiles();
+            } else {
+                alert('Failed to save profile');
+            }
+        }
+
+        async function createProfile() {
+            const name = document.getElementById('newProfileName').value.trim();
+            const icon = document.getElementById('newProfileIcon').value.trim();
+            const sortValue = document.getElementById('newProfileSort').value;
+            const sort = sortValue === '' ? null : parseInt(sortValue);
+
+            if (!name) {
+                alert('Name is required');
+                return;
+            }
+
+            const res = await fetch('/api/profiles/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, icon, sort })
+            });
+
+            if (res.ok) {
+                document.getElementById('newProfileName').value = '';
+                document.getElementById('newProfileIcon').value = '';
+                document.getElementById('newProfileSort').value = '';
+                loadProfiles();
+            } else {
+                alert('Failed to create profile');
+            }
+        }
+
+        function setupTabs() {
+            const buttons = Array.from(document.querySelectorAll('.tab-button'));
+            const panels = {
+                settings: document.getElementById('tab-settings'),
+                profiles: document.getElementById('tab-profiles')
+            };
+
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    buttons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    Object.values(panels).forEach(panel => panel.classList.remove('active'));
+                    const target = btn.getAttribute('data-tab');
+                    panels[target].classList.add('active');
+                });
+            });
+        }
+
         // Init
+        setupTabs();
         loadSettings();
+        loadProfiles();
     </script>
 </body>
 </html>

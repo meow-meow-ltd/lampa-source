@@ -1,6 +1,6 @@
 module.exports = {
     ADMIN_TOKEN: 'admin_token',
     ADMIN_PASSWORD: 'admin_password',
-    TORRSERVER_URL: 'torrserver_url'
+    TORRSERVER_URL: 'torrserver_url',
+    JACKETT_URL: 'jackett_url'
 };
-

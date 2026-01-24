@@ -121,17 +121,14 @@ function select(callback){
                 let items = Arrays.clone(result.profiles)
                 let clone = Arrays.clone(result.profiles)
 
-                items.reverse()
-                clone.reverse()
-
-                let select  = []
-                let maximum = Lampa.Account.hasPremium() ? 8 : 3
-
+                items.sort((a, b) => (a.sort || 0) - (b.sort || 0))
+                clone.sort((a, b) => (a.sort || 0) - (b.sort || 0))
+                
                 let list = items.map((elem, index)=>{
                     elem.title    = elem.name
                     elem.template = 'selectbox_icon'
                     elem.icon     = Permit.isLocal
-                        ? Template.string('icon_profile')
+                        ? (elem.icon || Template.string('icon_profile'))
                         : '<img src="' + Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + elem.icon + '.png" class="size-medium" />'
                     elem.clone    = clone[index]
                     elem.subtitle = elem.main ? Lang.translate('account_profile_main') : elem.child ? Lang.translate('account_profile_child') + ' ' + '(' + Lang.translate('filter_rating_to') + ' ' + (elem.age || 12) + ')' : ''
@@ -142,6 +139,9 @@ function select(callback){
                 })
 
                 
+                let select  = []
+                let maximum = Lampa.Account.hasPremium() ? 8 : 3
+
                 let additional = {
                     title: Lang.translate('account_profile_add'),
                     template: 'selectbox_icon',
