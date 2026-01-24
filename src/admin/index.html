@@ -71,7 +71,7 @@
             padding: 12px;
             border-bottom: 1px solid #444;
         }
-        th {
+        .column-name {
             color: #dfe6e9;
             font-weight: 600;
         }
@@ -84,8 +84,9 @@
             background: #c0392b;
         }
         .key-col { width: 40%; font-weight: bold; color: #74b9ff; }
-        .val-col { width: 40%; }
-        .act-col { width: 20%; text-align: right; }
+        .val-col { width: 35%; }
+        .vis-col { width: 10%; text-align: center; font-weight: bold; }
+        .act-col { width: 15%; text-align: right; }
     </style>
 </head>
 <body>
@@ -102,9 +103,10 @@
             <table id="settingsTable">
                 <thead>
                     <tr>
-                        <th class="key-col">Key</th>
-                        <th class="val-col">Value</th>
-                        <th class="act-col">Action</th>
+                        <th class="column-name">Key</th>
+                        <th class="column-name">Value</th>
+                        <th class="column-name">Visible</th>
+                        <th class="column-name">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -133,6 +135,7 @@
                         <td class="val-col">
                             <input type="text" id="val-${item.key}" value="${item.value}" style="width: 100%; box-sizing: border-box;">
                         </td>
+                        <td class="vis-col">${item.visible ? '+' : '-'}</td>
                         <td class="act-col">
                             <button class="btn-save" onclick="updateSetting('${item.key}')" style="margin-right: 5px; background: #00b894;">Save</button>
                         </td>
