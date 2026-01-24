@@ -5656,6 +5656,8 @@ body.selectbox--open .selectbox__layer {
   -webkit-flex-shrink: 0;
       -ms-flex-negative: 0;
           flex-shrink: 0;
+  font-size: 2.2em;
+  line-height: 1;
 }
 .selectbox-item__icon > * {
   width: 2.7em;
