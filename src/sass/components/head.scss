@@ -151,6 +151,11 @@
                 width: 2.4em !important;
                 height: 2.4em !important;
             }
+
+            .head__profile-emoji{
+                font-size: 2em;
+                line-height: 1;
+            }
         }
 
         @media screen and (max-width: $media_xm) {

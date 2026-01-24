@@ -993,6 +993,10 @@ body.light--version .wrap__left {
   width: 2.4em !important;
   height: 2.4em !important;
 }
+.head__action.open--profile .head__profile-emoji {
+  font-size: 2em;
+  line-height: 1;
+}
 @media screen and (max-width: 480px) {
   .head__action {
     margin-left: 0.5em;
