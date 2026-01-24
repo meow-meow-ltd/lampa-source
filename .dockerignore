@@ -1,0 +1,13 @@
+.git
+.gitignore
+.DS_Store
+node_modules
+npm-debug.log
+spec
+database.sqlite
+dist
+build
+.cache
+*.sqlite
+*.sqlite3
+yarn-error.log

@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const crypto = require('crypto');
 const SETTINGS_KEYS = require('./settings_keys');
+const dbPath = process.env.DB_PATH || './database.sqlite';
 
 function safeRun(db, sql, params = []) {
     db.run(sql, params, (err) => {
@@ -15,7 +16,7 @@ function safeGet(db, sql, params, cb) {
     });
 }
 
-let db = new sqlite3.Database('./database.sqlite', (err) => {
+let db = new sqlite3.Database(dbPath, (err) => {
     if (err) console.error(err.message);
     else {
         console.log('Connected to the SQLite database.');
