@@ -1,6 +1,6 @@
 const fs = require('fs');
 const db = require('../database');
-const SETTINGS_KEYS = require('../../src/utils/constants');
+const SETTINGS_KEYS = require('../settings_keys');
 
 module.exports = {
     serve: (req, res, next) => {

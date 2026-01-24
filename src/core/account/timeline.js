@@ -7,6 +7,7 @@ import Arrays from '../../utils/arrays'
 import Socket from '../socket'
 import WebWorker from '../../utils/worker'
 import Tracker from '../tracker'
+import Timer from '../timer'
 
 let tracker = new Tracker('account_timeline_sync')
 
@@ -21,6 +22,10 @@ function init(){
 
     Storage.listener.follow('clear',()=>{
         refrash()
+    })
+
+    Timer.add(1000 * 60 * 5, ()=>{
+        update()
     })
 }
 
@@ -55,13 +60,13 @@ function update(){
                     data: result
                 },(e)=>{
                     let data   = e.data
-                    let name   = 'file_view_' + Permit.account.profile.id
+                    let name   = 'file_view_' + Permit.profileId
 
                     if(!data.timelines){
                         return console.error('Account', 'timeline wrong dump format, no timelines:', result)
                     }
 
-                    console.log('Account', 'timeline dump loaded, items:', Object.keys(data.timelines).length, 'profile id:', Permit.account.profile.id)
+                    console.log('Account', 'timeline dump loaded, items:', Object.keys(data.timelines).length, 'profile id:', Permit.profileId)
 
                     // Если нет файла в localStorage, то создаем его из кеша
                     if(window.localStorage.getItem(name) === null){

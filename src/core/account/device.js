@@ -13,6 +13,8 @@ import Reguest from '../../utils/reguest'
 import Platform from '../platform'
 
 function init(){
+    if((window.lampa_settings.account_provider || 'cub') === 'local') return
+
     Settings.listener.follow('open',(e)=>{
         if(e.name == 'account') e.body.find('.settings--account-device-add').on('hover:enter', ()=>{
             login(()=>{

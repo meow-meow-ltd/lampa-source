@@ -34,7 +34,7 @@ function init(){
         title: 'account_profiles'
     })
 
-    if(!Permit.token) update()
+    if(Permit.isCub && !Permit.token) update()
 }
 
 /**
@@ -44,7 +44,7 @@ function init(){
 function update(){
     profile_icon.empty()
 
-    if(Permit.token){
+    if(Permit.isCub && Permit.token){
         profile_icon.append(Template.elem('img'))
 
         Utils.imgLoad(profile_icon.find('img'), Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + (Permit.account.profile.icon || 'l_1') + '.png', ()=>{}, (img)=>{
@@ -65,12 +65,14 @@ function check(call){
     if(Permit.access){
         let account = Permit.account
 
-        if(account.profile.id) call()
+        if(account.profile && account.profile.id) call()
         else{
             Api.load('profiles/all', {attempts: 3}).then((result)=>{
                 let main = result.profiles.find(p=>p.main)
 
                 if(main){
+                    if(!account.profile) account.profile = {}
+
                     account.profile = main
 
                     Storage.set('account', account, true)
@@ -92,9 +94,10 @@ function check(call){
  */
 function select(callback){
     ParentalControl.personal('account_profiles',()=>{
-        if(!Permit.token) return Advert.account()
+        if(Permit.isCub && !Permit.token) return Advert.account()
 
         let account = Permit.account
+        if(!account.profile) account.profile = {id: 0}
 
         Loading.start(()=>{
             Api.clear()
@@ -118,7 +121,9 @@ function select(callback){
                 let list = items.map((elem, index)=>{
                     elem.title    = elem.name
                     elem.template = 'selectbox_icon'
-                    elem.icon     = '<img src="' + Utils.protocol() + Manifest.cub_domain +'/img/profiles/'+elem.icon+'.png" />'
+                    elem.icon     = Permit.isLocal
+                        ? Template.string('icon_profile')
+                        : '<img src="' + Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + elem.icon + '.png" />'
                     elem.clone    = clone[index]
                     elem.subtitle = elem.main ? Lang.translate('account_profile_main') : elem.child ? Lang.translate('account_profile_child') : ''
 

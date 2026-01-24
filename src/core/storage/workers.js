@@ -109,7 +109,7 @@ class WorkerArray{
     }
 
     update(full, nolisten){
-        if(Account.Permit.sync && Account.hasPremium() && Date.now() - this.update_time > 1000 * 60 * 9){
+        if(Account.Permit.isCub && Account.Permit.sync && Account.hasPremium() && Date.now() - this.update_time > 1000 * 60 * 9){
             let account = Account.Permit.account
 
             this.update_time = Date.now()
@@ -160,7 +160,7 @@ class WorkerArray{
     }
 
     send(id,value){
-        if(!Account.hasPremium()) return
+        if(!Account.Permit.isCub || !Account.hasPremium()) return
 
         console.log('StorageWorker','save:',this.field, id,value)
 
@@ -178,6 +178,8 @@ class WorkerArray{
     }
 
     sendRemove(id,value){
+        if(!Account.Permit.isCub) return
+
         let str = JSON.stringify(value)
 
         console.log('StorageWorker','remove:',this.field, id,value)
@@ -195,6 +197,8 @@ class WorkerArray{
     }
 
     sendClean(){
+        if(!Account.Permit.isCub) return
+
         Socket.send('storage',{
             params: {
                 id: null,
