@@ -12,7 +12,6 @@ let stored = {
     sort: [],
     hide: []
 }
-const migration_key = 'menu_profile_migrated'
 
 function init(list){
     menu = list
@@ -182,20 +181,6 @@ function normalizeList(value){
     return []
 }
 
-function readLocalList(key, profile_id){
-    if(!profile_id) return null
-
-    if(!shouldMigrate(profile_id)) return null
-
-    let raw = window.localStorage.getItem(key)
-
-    if(raw === null) return null
-
-    markMigrated(profile_id)
-
-    return normalizeList(raw)
-}
-
 function load(){
     load_promise = ensureProfile().then(()=>{
         stored.sort = []
@@ -206,50 +191,14 @@ function load(){
             ProfileSettings.get('menu_hide')
         ])
     }).then(([sort_value, hide_value])=>{
-        let sort = normalizeList(sort_value)
-        let hide = normalizeList(hide_value)
-
-        if(sort_value === null){
-            let local_sort = readLocalList('menu_sort', currentProfileId())
-
-            if(local_sort !== null){
-                sort = local_sort
-                ProfileSettings.set('menu_sort', JSON.stringify(local_sort))
-            }
-        }
-
-        if(hide_value === null){
-            let local_hide = readLocalList('menu_hide', currentProfileId())
-
-            if(local_hide !== null){
-                hide = local_hide
-                ProfileSettings.set('menu_hide', JSON.stringify(local_hide))
-            }
-        }
-
-        stored.sort = sort
-        stored.hide = hide
+        stored.sort = normalizeList(sort_value)
+        stored.hide = normalizeList(hide_value)
     }).catch(()=>{
         stored.sort = []
         stored.hide = []
     })
 
     return load_promise
-}
-
-function shouldMigrate(profile_id){
-    let list = Arrays.decodeJson(window.localStorage.getItem(migration_key), [])
-
-    return list.indexOf(profile_id) === -1
-}
-
-function markMigrated(profile_id){
-    let list = Arrays.decodeJson(window.localStorage.getItem(migration_key), [])
-
-    if(list.indexOf(profile_id) === -1){
-        list.push(profile_id)
-        window.localStorage.setItem(migration_key, JSON.stringify(list))
-    }
 }
 
 function ensureProfile(){
