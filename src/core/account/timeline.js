@@ -11,6 +11,7 @@ import Noty from '../../interaction/noty'
 import Lang from '../lang'
 import Bell from '../../interaction/bell'
 import Timer from '../timer'
+import AccountListener from './listener'
 
 let tracker = new Tracker('account_timeline_sync')
 
@@ -33,6 +34,18 @@ function init(){
     Storage.listener.follow('clear',()=>{
         refresh()
     })
+
+    AccountListener.follow('profile_select', onProfileSelect)
+
+    Timer.add(1000 * 60 * 5, ()=>{
+        update()
+    })
+}
+
+function onProfileSelect(){
+    if(Permit.sync) Timeline.read()
+
+    refresh()
 }
 
 /**
