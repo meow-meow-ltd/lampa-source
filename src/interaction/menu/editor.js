@@ -2,7 +2,7 @@ import Modal from '../modal'
 import Controller from '../../core/controller'
 import Lang from '../../core/lang'
 import Arrays from '../../utils/arrays'
-import ProfileSettings from '../../services/profile_settings'
+import Profile from '../../services/profile'
 import AccountListener from '../../core/account/listener'
 
 let menu
@@ -142,8 +142,8 @@ function save(){
     stored.sort = sort
     stored.hide = hide
 
-    ProfileSettings.set('menu_sort', JSON.stringify(sort))
-    ProfileSettings.set('menu_hide', JSON.stringify(hide))
+    Profile.set('menu_sort', sort)
+    Profile.set('menu_hide', hide)
 }
 
 function update(){
@@ -168,7 +168,7 @@ function observe(){
             })
 
             stored.sort = memory
-            ProfileSettings.set('menu_sort', JSON.stringify(memory))
+            Profile.set('menu_sort', memory)
 
             update()
         })
@@ -186,13 +186,10 @@ function load(){
         stored.sort = []
         stored.hide = []
 
-        return Promise.all([
-            ProfileSettings.get('menu_sort'),
-            ProfileSettings.get('menu_hide')
-        ])
-    }).then(([sort_value, hide_value])=>{
-        stored.sort = normalizeList(sort_value)
-        stored.hide = normalizeList(hide_value)
+        return Profile.fetch()
+    }).then((values)=>{
+        stored.sort = normalizeList(values.menu_sort)
+        stored.hide = normalizeList(values.menu_hide)
     }).catch(()=>{
         stored.sort = []
         stored.hide = []

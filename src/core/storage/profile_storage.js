@@ -1,6 +1,6 @@
 import Arrays from '../../utils/arrays'
 import Storage from './storage'
-import ProfileSettings from '../../services/profile_settings'
+import Profile from '../../services/profile'
 import AccountListener from '../account/listener'
 
 const PROFILE_KEYS = {
@@ -81,11 +81,9 @@ function load(){
 
         if(!profile_id) return
 
-        let keys = Object.keys(PROFILE_KEYS)
-
-        return Promise.all(keys.map((key)=>ProfileSettings.get(key))).then((values)=>{
-            keys.forEach((key, index)=>{
-                let value = normalizeValue(key, values[index])
+        return Profile.fetch().then((values)=>{
+            Object.keys(PROFILE_KEYS).forEach((key)=>{
+                let value = normalizeValue(key, values[key])
 
                 if(value === null){
                     Storage.set(key, emptyValue(key), true)
@@ -107,7 +105,7 @@ function onStorageChange(e){
     if(!canUseProfileStorage()) return
     if(loading) return
 
-    ProfileSettings.set(e.name, e.value)
+    Profile.set(e.name, e.value)
 }
 
 function init(){
