@@ -1,8 +1,9 @@
 const db = require('../database');
+const SETTINGS_KEYS = require('../../src/utils/constants');
 
 module.exports = {
     handle: (req, res) => {
-        db.get("SELECT value FROM settings WHERE key = 'admin_token'", (err, tokenRow) => {
+        db.get("SELECT value FROM settings WHERE key = ?", [SETTINGS_KEYS.ADMIN_TOKEN], (err, tokenRow) => {
             const validToken = tokenRow?.value;
             if (req.cookies['auth_token'] !== validToken) {
                  res.writeHead(401);

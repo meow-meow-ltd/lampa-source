@@ -8,6 +8,7 @@ import Subscribe from '../../utils/subscribe'
 import Lang from '../../core/lang'
 import Manifest from '../../core/manifest'
 import filter_langs from '../../components/torrents/lang'
+import SETTINGS_KEYS from '../../utils/constants'
 
 let values   = {}
 let defaults = {}
@@ -817,7 +818,7 @@ select('prowlarr_url','','');
 select('prowlarr_key','','');
 select('prowlarr_url_two','','');
 select('prowlarr_key_two','','');
-select('torrserver_url','','')
+select(SETTINGS_KEYS.TORRSERVER_URL,'','')
 select('torrserver_url_two','','')
 select('torrserver_login','','')
 select('torrserver_password','','')

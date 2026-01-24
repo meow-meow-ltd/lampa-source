@@ -7,6 +7,7 @@ import Request from '../utils/reguest'
 import Lang from '../core/lang'
 import Settings from '../interaction/settings/settings'
 import Torserver from '../interaction/torserver'
+import SETTINGS_KEYS from '../utils/constants'
 
 let torrent_net = new Request()
 
@@ -16,9 +17,9 @@ let torrent_net = new Request()
  */
 function init(){
     Storage.listener.follow('change', function (e) {
-        if (e.name == 'torrserver_url') check(e.name)
+        if (e.name == SETTINGS_KEYS.TORRSERVER_URL) check(e.name)
         if (e.name == 'torrserver_url_two') check(e.name)
-        if (e.name == 'torrserver_use_link') check(e.value == 'one' ? 'torrserver_url' : 'torrserver_url_two')
+        if (e.name == 'torrserver_use_link') check(e.value == 'one' ? SETTINGS_KEYS.TORRSERVER_URL : 'torrserver_url_two')
     })
 
     Settings.listener.follow('open', function (e){
@@ -26,7 +27,7 @@ function init(){
             Torserver.gstCheck()
         }
         else if(e.name == 'server'){
-            check(Storage.field('torrserver_use_link') == 'one' ? 'torrserver_url' : 'torrserver_url_two')
+            check(Storage.field('torrserver_use_link') == 'one' ? SETTINGS_KEYS.TORRSERVER_URL : 'torrserver_url_two')
 
             if(!Torserver.gstExist()) e.body.find('[data-name="torrserver_gts"]').remove()
         }

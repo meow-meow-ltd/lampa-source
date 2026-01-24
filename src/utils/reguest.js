@@ -10,6 +10,7 @@ import Manifest from '../core/manifest'
 import Mirrors from '../core/mirrors'
 import Cache from './cache'
 import Utils from './utils'
+import SETTINGS_KEYS from './constants'
 
 let bad_mirrors = {}
 
@@ -537,7 +538,7 @@ function Request(){
             error: error,
             beforeSend: (xhr) => {
                 let use = Storage.field('torrserver_auth')
-				let srv = Storage.get(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : 'torrserver_url')
+				let srv = Storage.get(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL)
 
 				if(use && srv && params.url.indexOf(srv) >= 0){
                     let authorization = "Basic " + Base64.encode(Storage.get('torrserver_login')+':'+Storage.value('torrserver_password'))

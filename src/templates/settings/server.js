@@ -1,3 +1,5 @@
+import SETTINGS_KEYS from '../../utils/constants'
+
 let html = `<div>
     <div class="settings-param selector is--android" data-type="select" data-name="internal_torrclient" data-children="internal_torrclient">
         <div class="settings-param__name">#{settings_server_client}</div>
@@ -13,7 +15,7 @@ let html = `<div>
 
         <div class="settings-param-title"><span>#{settings_server_links}</span></div>
 
-        <div class="settings-param selector" data-type="input" data-name="torrserver_url" placeholder="#{settings_server_placeholder}">
+        <div class="settings-param selector" data-type="input" data-name="${SETTINGS_KEYS.TORRSERVER_URL}" placeholder="#{settings_server_placeholder}">
             <div class="settings-param__name">#{settings_server_link_one}</div>
             <div class="settings-param__value"></div>
             <div class="settings-param__descr">#{settings_server_link_one_descr}</div>
