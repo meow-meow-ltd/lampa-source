@@ -18,7 +18,8 @@ var concat         = require('gulp-concat'),
     replace        = require('gulp-replace'),
     fs             = require('fs'),
     worker         = require('rollup-plugin-web-worker-loader'),
-    crypto         = require('crypto');
+    crypto         = require('crypto'),
+    backendMiddleware = require('./backend/middleware');
 
 var source = require('vinyl-source-stream');
 var buffer = require('vinyl-buffer');
@@ -48,6 +49,8 @@ var plgFolder = './plugins/';
 var docFolder = './build/doc/';
 
 var isDebugEnabled = false;
+
+
 
 function merge(done) {
     let plugins = [babel({
@@ -104,21 +107,21 @@ function bubbleFile(name){
         input: plgFolder+name,
         plugins: plug,
         output: {
-          format: 'iife',
-          sourcemap: isDebugEnabled ? 'inline' : false,
-          sourcemapPathTransform: isDebugEnabled ? pluginSourcemapPathTransform : undefined
+            format: 'iife',
+            sourcemap: isDebugEnabled ? 'inline' : false,
+            sourcemapPathTransform: isDebugEnabled ? pluginSourcemapPathTransform : undefined
         },
         onwarn: function ( message ) {
             return;
         }
-      })
-      .pipe(source(name))
-      .pipe(buffer())
-      .pipe(fileinclude({
+    })
+    .pipe(source(name))
+    .pipe(buffer())
+    .pipe(fileinclude({
         prefix: '@@',
         basepath: '@file'
-      }))
-      .pipe(dest(dstFolder));
+    }))
+    .pipe(dest(dstFolder));
 }
 
 function getFileHash(path) {
@@ -299,7 +302,8 @@ function watch(done){
 function browser_sync(done) {
     browser.init({
         server: {
-            baseDir: bulFolder+'web/'
+            baseDir: bulFolder+'web/',
+            middleware: [backendMiddleware]
         },
         open: false,
         notify: false,

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lampa Admin</title>
+    <style>
+        body {
+            background-color: #1b1b1b;
+            color: #ecf0f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            color: #a29bfe;
+        }
+        .card {
+            background: #2d3436;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        input {
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #1e272e;
+            color: #fff;
+            flex-grow: 1;
+            font-size: 16px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #6c5ce7;
+        }
+        button {
+            padding: 12px 24px;
+            border-radius: 6px;
+            border: none;
+            background: #6c5ce7;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #5f27cd;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #444;
+        }
+        th {
+            color: #dfe6e9;
+            font-weight: 600;
+        }
+        .btn-delete {
+            background: #d63031;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        .btn-delete:hover {
+            background: #c0392b;
+        }
+        .key-col { width: 40%; font-weight: bold; color: #74b9ff; }
+        .val-col { width: 40%; }
+        .act-col { width: 20%; text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; margin-bottom: 30px; padding-bottom: 10px;">
+            <h1 style="border: none; margin: 0; padding: 0;">Lampa Administration</h1>
+            <button onclick="logout()" style="background: #e17055; padding: 8px 16px;">Exit</button>
+        </div>
+        
+
+
+        <div class="card">
+            <h3>Current Settings</h3>
+            <table id="settingsTable">
+                <thead>
+                    <tr>
+                        <th class="key-col">Key</th>
+                        <th class="val-col">Value</th>
+                        <th class="act-col">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Settings will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                if (res.status === 401) {
+                    window.location.reload(); // Trigger re-login flow
+                    return;
+                }
+                const data = await res.json();
+                const tbody = document.querySelector('#settingsTable tbody');
+                tbody.innerHTML = '';
+                
+                data.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="key-col">${item.key}</td>
+                        <td class="val-col">
+                            <input type="text" id="val-${item.key}" value="${item.value}" style="width: 100%; box-sizing: border-box;">
+                        </td>
+                        <td class="act-col">
+                            <button class="btn-save" onclick="updateSetting('${item.key}')" style="margin-right: 5px; background: #00b894;">Save</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Error loading settings:', e);
+            }
+        }
+
+        async function logout() {
+            await fetch('/admin/logout', { method: 'POST' });
+            window.location.reload();
+        }
+
+
+
+        async function updateSetting(key) {
+            const value = document.getElementById('val-' + key).value;
+            
+            const res = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, value })
+            });
+
+            if (res.ok) {
+                alert('Saved!');
+                // Optional: visual feedback
+            } else {
+                alert('Failed to save setting');
+            }
+        }
+
+        // Init
+        loadSettings();
+    </script>
+</body>
+</html>
