@@ -1,10 +1,13 @@
 const fs = require('fs');
+const db = require('../database');
 
 module.exports = {
     serve: (req, res, next) => {
-        if(req.cookies['auth_token'] === 'valid_token'){
-            // Serve Admin Page if Authenticated
-             fs.readFile('./src/admin/index.html', 'utf8', (err, data) => {
+        db.get("SELECT value FROM settings WHERE key = 'admin_token'", (err, tokenRow) => {
+            const validToken = tokenRow?.value;
+            if(req.cookies['auth_token'] === validToken){
+                // Serve Admin Page if Authenticated
+                 fs.readFile('./src/admin/index.html', 'utf8', (err, data) => {
                  if (err) return next();
                   res.setHeader('Content-Type', 'text/html');
                   res.end(data);
@@ -48,5 +51,6 @@ module.exports = {
                  </html>
              `);
          }
-    }
+    });
+}
 };
