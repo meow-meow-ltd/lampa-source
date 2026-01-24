@@ -183,7 +183,7 @@ function select(callback){
 
                 Select.show({
                     title: Lang.translate('account_profiles'),
-                    items: select,
+                    items: list,
                     onSelect: (a)=>{
                         account.profile = a.clone
 
@@ -194,9 +194,6 @@ function select(callback){
                         Listener.send('profile_select', {profile: account.profile})
                     },
                     onBack: callback,
-                    onFullDraw: (container)=>{
-                        container.append($('<div class="selectbox__text selector"><div>'+Lang.translate('account_profile_info')+'</div></div>'))
-                    }
                 })
             }
             else{

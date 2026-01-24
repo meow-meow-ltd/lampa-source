@@ -1,15 +1,33 @@
 import Modal from '../modal'
-import Storage from '../../core/storage/storage'
 import Controller from '../../core/controller'
 import Lang from '../../core/lang'
+import Arrays from '../../utils/arrays'
+import ProfileSettings from '../../services/profile_settings'
+import AccountListener from '../../core/account/listener'
 
 let menu
 let timer
+let load_promise = Promise.resolve()
+let stored = {
+    sort: [],
+    hide: []
+}
+const migration_key = 'menu_profile_migrated'
 
 function init(list){
     menu = list
 
-    observe()
+    load().then(()=>{
+        update()
+        observe()
+    })
+
+    AccountListener.follow('profile_select', ()=>{
+        load().then(()=>{
+            update()
+            observe()
+        })
+    })
 }
 
 function start(){
@@ -83,7 +101,7 @@ function start(){
 }
 
 function order(){
-    let items = Storage.get('menu_sort','[]')
+    let items = stored.sort
     
     if(items.length){
         items.forEach((item)=>{
@@ -95,7 +113,7 @@ function order(){
 }
 
 function hide(){
-    let items = Storage.get('menu_hide','[]')
+    let items = stored.hide
     
     $('.menu__item', menu).removeClass('hidden')
 
@@ -122,8 +140,11 @@ function save(){
         }
     })
 
-    Storage.set('menu_sort', sort)
-    Storage.set('menu_hide', hide)
+    stored.sort = sort
+    stored.hide = hide
+
+    ProfileSettings.set('menu_sort', JSON.stringify(sort))
+    ProfileSettings.set('menu_hide', JSON.stringify(hide))
 }
 
 function update(){
@@ -135,21 +156,120 @@ function observe(){
     clearTimeout(timer)
     
     timer = setTimeout(()=>{
-        let memory = Storage.get('menu_sort', '[]')
-        let anon   = []
+        load_promise.then(()=>{
+            let memory = stored.sort.slice()
+            let anon   = []
 
-        $('.menu__item', menu).each(function(){
-            anon.push($(this).find('.menu__text').text().trim())
+            $('.menu__item', menu).each(function(){
+                anon.push($(this).find('.menu__text').text().trim())
+            })
+
+            anon.forEach((item)=>{
+                if(memory.indexOf(item) == -1) memory.push(item)
+            })
+
+            stored.sort = memory
+            ProfileSettings.set('menu_sort', JSON.stringify(memory))
+
+            update()
         })
-
-        anon.forEach((item)=>{
-            if(memory.indexOf(item) == -1) memory.push(item)
-        })
-
-        Storage.set('menu_sort', memory)
-
-        update()
     },500)
+}
+
+function normalizeList(value){
+    if(Array.isArray(value)) return value
+    if(typeof value === 'string') return Arrays.decodeJson(value, [])
+    return []
+}
+
+function readLocalList(key, profile_id){
+    if(!profile_id) return null
+
+    if(!shouldMigrate(profile_id)) return null
+
+    let raw = window.localStorage.getItem(key)
+
+    if(raw === null) return null
+
+    markMigrated(profile_id)
+
+    return normalizeList(raw)
+}
+
+function load(){
+    load_promise = ensureProfile().then(()=>{
+        stored.sort = []
+        stored.hide = []
+
+        return Promise.all([
+            ProfileSettings.get('menu_sort'),
+            ProfileSettings.get('menu_hide')
+        ])
+    }).then(([sort_value, hide_value])=>{
+        let sort = normalizeList(sort_value)
+        let hide = normalizeList(hide_value)
+
+        if(sort_value === null){
+            let local_sort = readLocalList('menu_sort', currentProfileId())
+
+            if(local_sort !== null){
+                sort = local_sort
+                ProfileSettings.set('menu_sort', JSON.stringify(local_sort))
+            }
+        }
+
+        if(hide_value === null){
+            let local_hide = readLocalList('menu_hide', currentProfileId())
+
+            if(local_hide !== null){
+                hide = local_hide
+                ProfileSettings.set('menu_hide', JSON.stringify(local_hide))
+            }
+        }
+
+        stored.sort = sort
+        stored.hide = hide
+    }).catch(()=>{
+        stored.sort = []
+        stored.hide = []
+    })
+
+    return load_promise
+}
+
+function shouldMigrate(profile_id){
+    let list = Arrays.decodeJson(window.localStorage.getItem(migration_key), [])
+
+    return list.indexOf(profile_id) === -1
+}
+
+function markMigrated(profile_id){
+    let list = Arrays.decodeJson(window.localStorage.getItem(migration_key), [])
+
+    if(list.indexOf(profile_id) === -1){
+        list.push(profile_id)
+        window.localStorage.setItem(migration_key, JSON.stringify(list))
+    }
+}
+
+function ensureProfile(){
+    if(window.Lampa && Lampa.Account && Lampa.Account.Profile && Lampa.Account.Permit){
+        if(Lampa.Account.Permit.access && !Lampa.Account.Permit.profileId){
+            return new Promise((resolve)=>{
+                Lampa.Account.Profile.check(resolve)
+            })
+        }
+    }
+
+    return Promise.resolve()
+}
+
+function currentProfileId(){
+    if(window.Lampa && Lampa.Account && Lampa.Account.Permit){
+        return Lampa.Account.Permit.profileId
+    }
+
+    return 0
 }
 
 export default {

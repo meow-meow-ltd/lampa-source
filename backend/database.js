@@ -141,6 +141,21 @@ let db = new sqlite3.Database('./database.sqlite', (err) => {
                 });
             }
 
+            if (version < 4) {
+                safeRun(db, `
+                    CREATE TABLE IF NOT EXISTS profile_settings (
+                        profile_id INTEGER NOT NULL,
+                        key TEXT NOT NULL,
+                        value TEXT,
+                        updated_at INTEGER NOT NULL,
+                        PRIMARY KEY(profile_id, key)
+                    )
+                `);
+                safeRun(db, "CREATE INDEX IF NOT EXISTS profile_settings_profile_id ON profile_settings(profile_id)");
+
+                setVersion(4);
+            }
+
             safeRun(
                 db,
                 `INSERT INTO settings(key, value, visible) VALUES(?, 'admin', 0) ON CONFLICT(key) DO NOTHING`,

@@ -8,6 +8,7 @@ const profilesParams = require('./routes/profiles');
 const bookmarksParams = require('./routes/bookmarks');
 const timelineParams = require('./routes/timeline');
 const backupParams = require('./routes/backup');
+const profileSettingsParams = require('./routes/profile_settings');
 
 module.exports = function(req, res, next) {
     cookieParser()(req, res, () => {
@@ -25,6 +26,8 @@ module.exports = function(req, res, next) {
                     dataParams.handle(req, res);
                 } else if (req.url.startsWith('/api/profiles')) {
                     profilesParams.handle(req, res);
+                } else if (req.url.startsWith('/api/profile/settings')) {
+                    profileSettingsParams.handle(req, res);
                 } else if (req.url.startsWith('/api/bookmarks')) {
                     bookmarksParams.handle(req, res);
                 } else if (req.url.startsWith('/api/timeline')) {
