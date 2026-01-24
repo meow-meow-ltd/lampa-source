@@ -9,6 +9,7 @@ let db = new sqlite3.Database('./database.sqlite', (err) => {
              db.run(`INSERT INTO settings(key, value) VALUES('admin_password', 'admin') ON CONFLICT(key) DO NOTHING`);
              const randomToken = crypto.randomBytes(16).toString('hex');
              db.run(`INSERT INTO settings(key, value) VALUES('admin_token', ?) ON CONFLICT(key) DO NOTHING`, [randomToken]);
+             db.run(`INSERT INTO settings(key, value, visible) VALUES('torrserver_url', '', 1) ON CONFLICT(key) DO NOTHING`);
         });
     }
 });

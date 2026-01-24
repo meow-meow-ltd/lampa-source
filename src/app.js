@@ -121,6 +121,7 @@ import ServiceRemoteFavorites from './services/remote_favorites'
 import ServiceDMCA from './services/dmca'
 import ServiceFPS from './services/fps'
 import ServiceEvents from './services/events'
+import ServiceDbValues from './services/db_values'
 
 window.screen_width  = window.innerWidth
 window.screen_height = window.innerHeight
@@ -354,7 +355,9 @@ function initClass(){
         ContentRows,
         Emit,
         Router,
-        Timer
+        Router,
+        Timer,
+        DbValues: ServiceDbValues
     }
 }
 
