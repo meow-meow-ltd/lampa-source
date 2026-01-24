@@ -6,7 +6,6 @@ import Listener from './listener'
 import Storage from '../storage/storage'
 import Template from '../../interaction/template'
 import Head from '../../interaction/head/head'
-import Manifest from '../manifest'
 import ParentalControl from '../../interaction/parental_control'
 import Controller from '../controller'
 import Select from '../../interaction/select'
@@ -18,6 +17,16 @@ import Input from '../../interaction/settings/input'
 import Bell from '../../interaction/bell'
 
 let profile_icon
+
+function profileIconText(icon){
+    if(typeof icon !== 'string') return ''
+
+    let value = icon.trim()
+
+    if(!value || /^l_\d+$/i.test(value)) return ''
+
+    return value
+}
 
 function init(){
     let setting = window.lampa_settings.head_profile
@@ -47,16 +56,13 @@ function init(){
 function update(){
     profile_icon.empty()
 
-    if(Permit.token){
-        profile_icon.append(Template.elem('img'))
+    if(Permit.access){
+        let icon = profileIconText(Permit.account.profile ? Permit.account.profile.icon : '')
 
-        Utils.imgLoad(profile_icon.find('img'), Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + (Permit.account.profile.icon || 'l_1') + '.png', ()=>{}, (img)=>{
-            img.src = './img/img_load.svg'
-        })
+        if(icon) profile_icon.append(Template.elem('span', {class: 'head__profile-emoji', text: icon}))
+        else profile_icon.append(Template.js('icon_profile'))
     }
-    else{
-        profile_icon.append(Template.js('icon_profile'))
-    }
+    else profile_icon.append(Template.js('icon_profile'))
 }
 /**
  * Возвращает иконку профиля
@@ -128,11 +134,11 @@ function select(callback){
                 clone.sort((a, b) => (a.sort || 0) - (b.sort || 0))
                 
                 let list = items.map((elem, index)=>{
+                    let icon = profileIconText(elem.icon)
+
                     elem.title    = elem.name
                     elem.template = 'selectbox_icon'
-                    elem.icon     = Permit.isLocal
-                        ? (elem.icon || Template.string('icon_profile'))
-                        : '<img src="' + Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + elem.icon + '.png" class="size-medium" />'
+                    elem.icon     = icon || Template.string('icon_profile')
                     elem.clone    = clone[index]
                     elem.subtitle = elem.main ? Lang.translate('account_profile_main') : elem.child ? Lang.translate('account_profile_child') + ' ' + '(' + Lang.translate('filter_rating_to') + ' ' + (elem.age || 12) + ')' : ''
 
