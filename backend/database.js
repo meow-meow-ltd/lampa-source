@@ -185,6 +185,24 @@ let db = new sqlite3.Database('./database.sqlite', (err) => {
                 `INSERT INTO settings(key, value, visible) VALUES(?, '', 1) ON CONFLICT(key) DO NOTHING`,
                 [SETTINGS_KEYS.JACKETT_URL]
             );
+            [
+                SETTINGS_KEYS.MENU_INTERFACE,
+                SETTINGS_KEYS.MENU_CHANNELS,
+                SETTINGS_KEYS.MENU_PLAYER,
+                SETTINGS_KEYS.MENU_PARSER,
+                SETTINGS_KEYS.MENU_SERVER,
+                SETTINGS_KEYS.MENU_TMDB,
+                SETTINGS_KEYS.MENU_PLUGINS,
+                SETTINGS_KEYS.MENU_PARENTAL_CONTROL,
+                SETTINGS_KEYS.MENU_DATA,
+                SETTINGS_KEYS.MENU_MORE
+            ].forEach(key => {
+                safeRun(
+                    db,
+                    `INSERT INTO settings(key, value, visible) VALUES(?, '1', 1) ON CONFLICT(key) DO NOTHING`,
+                    [key]
+                );
+            });
         });
     }
 });

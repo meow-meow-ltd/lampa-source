@@ -111,6 +111,7 @@ import ContentRows from './core/content_rows'
 import Emit from './utils/emit'
 import Router from './core/router'
 import Timer from './core/timer'
+import SETTINGS_KEYS from './utils/constants'
 
 import ServiceTorserver from './services/torrserver'
 import ServiceWatched from './services/watched'
@@ -804,6 +805,32 @@ function loadTask(){
         LoadingProgress.step(5)
 
         Account.task(next)
+    })
+
+    Task.queue((next)=>{
+        LoadingProgress.status('Menu visibility initialization')
+
+        let keys = [
+            SETTINGS_KEYS.MENU_INTERFACE,
+            SETTINGS_KEYS.MENU_CHANNELS,
+            SETTINGS_KEYS.MENU_PLAYER,
+            SETTINGS_KEYS.MENU_PARSER,
+            SETTINGS_KEYS.MENU_SERVER,
+            SETTINGS_KEYS.MENU_TMDB,
+            SETTINGS_KEYS.MENU_PLUGINS,
+            SETTINGS_KEYS.MENU_PARENTAL_CONTROL,
+            SETTINGS_KEYS.MENU_DATA,
+            SETTINGS_KEYS.MENU_MORE
+        ]
+
+        ServiceDbValues.getMany(keys, (data) => {
+            keys.forEach(key => {
+                if (data[key] !== undefined && data[key] !== null) {
+                    window.lampa_settings[key] = data[key]
+                }
+            })
+            next()
+        })
     })
 
     Task.secondary(()=>{

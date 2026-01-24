@@ -1,5 +1,5 @@
 let html = `<div>
-    <div class="settings-folder selector" data-component="account">
+  <!--  <div class="settings-folder selector" data-component="account">
         <div class="settings-folder__icon">
             <svg height="169" viewBox="0 0 172 169" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="85.765" cy="47.5683" r="15.5683" stroke="white" stroke-width="12"/>
@@ -9,7 +9,7 @@ let html = `<div>
             </svg>
         </div>
         <div class="settings-folder__name">#{settings_cub_sync}</div>
-    </div>
+    </div> -->
     <div class="settings-folder selector" data-component="interface">
         <div class="settings-folder__icon">
             <svg width="37" height="37" viewBox="0 0 37 37" fill="none" xmlns="http://www.w3.org/2000/svg">
