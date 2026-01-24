@@ -10,6 +10,14 @@
                 "debug"
             ],
             "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run",
+            "runtimeExecutable": "gulp",
+            "console": "integratedTerminal"
         }
+
     ]
 }

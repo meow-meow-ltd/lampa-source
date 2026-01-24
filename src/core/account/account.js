@@ -24,6 +24,7 @@ let user_data
  */
 function init(){
     if(!window.lampa_settings.account_use) return
+    Lampa.Storage.set('account_use', true)
 
     console.log('Account','use', Permit.token ? Permit.account.email : 'no account')
 
