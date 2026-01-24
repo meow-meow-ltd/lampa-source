@@ -8,6 +8,7 @@ import Socket from '../socket'
 import WebWorker from '../../utils/worker'
 import Tracker from '../tracker'
 import Timer from '../timer'
+import AccountListener from './listener'
 
 let tracker = new Tracker('account_timeline_sync')
 
@@ -24,9 +25,17 @@ function init(){
         refrash()
     })
 
+    AccountListener.follow('profile_select', onProfileSelect)
+
     Timer.add(1000 * 60 * 5, ()=>{
         update()
     })
+}
+
+function onProfileSelect(){
+    if(Permit.sync) Timeline.read()
+
+    refrash()
 }
 
 /**

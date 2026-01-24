@@ -24,6 +24,7 @@ import Screensaver from './interaction/screensaver'
 import Android from './core/android'
 import Subscribe from './utils/subscribe'
 import Storage from './core/storage/storage'
+import ProfileStorage from './core/storage/profile_storage'
 import Template from './interaction/template'
 import Component from './core/component'
 import Reguest from './utils/reguest'
@@ -557,6 +558,9 @@ function startApp(){
 
     Account.init()
     LoadingProgress.status('Account init')
+
+    ProfileStorage.init()
+    LoadingProgress.status('Profile storage init')
 
     Extensions.init()
     LoadingProgress.status('Extensions init')

@@ -1,13 +1,14 @@
 let status = false
 
 function init(){
-    $.ajax({
-        url: "./personal.lampa",
-        dataType: 'text',
-        success: ()=>{
-            status = true
-        }
-    })
+    // $.ajax({
+    //     url: "./personal.lampa",
+    //     dataType: 'text',
+    //     success: ()=>{
+    //         status = true
+    //     }
+    // })
+    status = true
 }
 
 function confirm(){
