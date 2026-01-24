@@ -10,9 +10,12 @@ module.exports = {
             }
             const password = row ? row.value : 'admin';
             if (req.body.password === password) {
-                res.setHeader('Set-Cookie', 'auth_token=valid_token; Path=/; HttpOnly');
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true }));
+                db.get("SELECT value FROM settings WHERE key = 'admin_token'", (err, tokenRow) => {
+                    const validToken = tokenRow?.value;
+                    res.setHeader('Set-Cookie', `auth_token=${validToken}; Path=/; HttpOnly`);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true }));
+                });
             } else {
                 res.writeHead(401, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false }));

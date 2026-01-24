@@ -2,12 +2,14 @@ const db = require('../database');
 
 module.exports = {
     handle: (req, res) => {
-        if (req.cookies['auth_token'] !== 'valid_token') {
-             res.writeHead(401);
-             return res.end();
-        }
+        db.get("SELECT value FROM settings WHERE key = 'admin_token'", (err, tokenRow) => {
+            const validToken = tokenRow?.value;
+            if (req.cookies['auth_token'] !== validToken) {
+                 res.writeHead(401);
+                 return res.end();
+            }
 
-        if (req.method === 'GET') {
+            if (req.method === 'GET') {
             db.all("SELECT * FROM settings", [], (err, rows) => {
                 if (err) {
                     res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -43,5 +45,6 @@ module.exports = {
             res.writeHead(405);
             res.end();
         }
-    }
+    });
+}
 };
