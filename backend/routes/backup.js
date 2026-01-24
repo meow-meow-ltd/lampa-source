@@ -3,6 +3,7 @@ const db = require('../database');
 const BACKUP_KEY = 'backup_latest';
 
 function json(res, status, payload) {
+    if (res.headersSent || res.writableEnded) return;
     res.writeHead(status, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(payload));
 }
@@ -48,4 +49,3 @@ module.exports = {
         res.end();
     }
 };
-
