@@ -282,18 +282,19 @@ function component(object){
     this.getFilterData = function(){
         let all = Storage.cache('torrents_filter_data',500,{})
         let cid = this.cardID()
+        let filter = all[cid] || Storage.get('torrents_filter','{}')
 
-        return all[cid] || Storage.get('torrents_filter','{}') 
+        return Arrays.clone(filter)
     }
 
     this.setFilterData = function(filter){
         let all = Storage.cache('torrents_filter_data',500,{})
         let cid = this.cardID()
 
-        all[cid] = filter
+        all[cid] = Arrays.clone(filter)
 
         Storage.set('torrents_filter_data',all)
-        Storage.set('torrents_filter',filter)
+        Storage.set('torrents_filter',Arrays.clone(filter))
     }
 
     this.buildFilterd = function(){
