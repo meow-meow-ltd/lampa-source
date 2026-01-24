@@ -53,7 +53,7 @@ function check(name) {
             }
         }
 
-        torrent_net.native(Utils.checkEmptyUrl(Storage.get(name)), ()=>{
+        torrent_net.native(Utils.checkHttp(Storage.get(name), true), ()=>{
             item.removeClass('wait').addClass('active')
         }, (a, c)=> {
             if(a.status == 401){

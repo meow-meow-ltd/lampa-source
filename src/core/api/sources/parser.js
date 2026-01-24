@@ -277,7 +277,7 @@ function get(params = {}, oncomplete, onerror){
         let torr_link = Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL)
 
         if(torr_link){
-            torrserver(params, Utils.checkEmptyUrl(torr_link), complete, error)
+            torrserver(params, Utils.checkHttp(torr_link, true), complete, error)
         } else {
             error(Lang.translate('torrent_parser_set_link') + ': TorrServer')
         }

@@ -20,7 +20,7 @@ let gst_work = false
 function url(){
     let u = ip()
 
-    return u ? Utils.checkEmptyUrl(u) : u
+    return u ? Utils.checkHttp(u, true) : u
 }
 
 /**
