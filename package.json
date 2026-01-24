@@ -4,6 +4,7 @@
   "description": "Lampa",
   "main": "index.js",
   "scripts": {
+    "build": "gulp build",
     "start": "gulp",
     "debug": "gulp debug",
     "test": "vitest",

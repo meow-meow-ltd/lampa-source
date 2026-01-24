@@ -12,7 +12,24 @@ MSX версия тут: https://github.com/yumata/lampa
 
 Затем запускаем команду `npm run start`
 
-Открываем браузер и вводим адрес `http://localhost:3000`
+Открываем браузер и вводим адрес `http://localhost:9118`
+
+## Docker
+
+Сборка и запуск (статические файлы собираются при сборке образа, БД хранится на хосте):
+
+```
+docker build -t lampa .
+docker run -d --name lampa -p 9118:3000 -v /opt/lampa:/data lampa
+```
+
+Или через Docker Compose:
+
+```
+docker compose up -d
+```
+
+База данных хранится на хосте в `/opt/lampa/database.sqlite` и доступна в контейнере по пути `/data/database.sqlite`.
 
 ## Документация
 
