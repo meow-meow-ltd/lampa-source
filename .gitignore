@@ -18,9 +18,9 @@ svg/
 temp/
 .idea/
 .claude/
-package-lock.json
 src/utils/api/okko.js
 .DS_Store
 DECISIONS.md
 PROGRESS.md
 TASKS.md
+database.sqlite
