@@ -158,7 +158,7 @@
             const value = document.getElementById('val-' + key).value;
             
             const res = await fetch('/api/settings', {
-                method: 'POST',
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ key, value })
             });

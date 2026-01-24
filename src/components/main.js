@@ -22,8 +22,7 @@ function component(object){
             if (Lampa.DbValues) {
                 Lampa.DbValues.get('torrserver_url', (url) => {
                     if (url) {
-                        let elem = $('<div class="head__action" style="font-size: 1.2em; margin-right: 1em; opacity: 0.6;">' + url + '</div>')
-                        Lampa.Head.addElement(elem)
+                        Lampa.Storage.set('torrserver_url', url)
                     }
                 })
             }
