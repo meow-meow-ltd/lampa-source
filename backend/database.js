@@ -203,6 +203,19 @@ let db = new sqlite3.Database('./database.sqlite', (err) => {
                     [key]
                 );
             });
+            [
+                SETTINGS_KEYS.HEAD_SEARCH,
+                SETTINGS_KEYS.HEAD_SETTINGS,
+                SETTINGS_KEYS.HEAD_BROADCAST,
+                SETTINGS_KEYS.HEAD_NOTICE,
+                SETTINGS_KEYS.HEAD_PROFILE
+            ].forEach(key => {
+                safeRun(
+                    db,
+                    `INSERT INTO settings(key, value, visible) VALUES(?, '1', 1) ON CONFLICT(key) DO NOTHING`,
+                    [key]
+                );
+            });
         });
     }
 });

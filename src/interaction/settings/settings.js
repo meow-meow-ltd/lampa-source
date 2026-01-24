@@ -85,11 +85,14 @@ function init(){
         title: 'title_settings'
     })
 
-    Head.addIcon(Template.string('icon_settings'), ()=>{
-        ParentalControl.personal('settings',()=>{
-            Controller.toggle('settings')
-        }, false, true)
-    }).addClass('open--settings')
+    let head_setting = window.lampa_settings.head_settings
+    if(!(head_setting === '0' || head_setting === 0 || head_setting === false || head_setting === 'false')){
+        Head.addIcon(Template.string('icon_settings'), ()=>{
+            ParentalControl.personal('settings',()=>{
+                Controller.toggle('settings')
+            }, false, true)
+        }).addClass('open--settings')
+    }
 }
 
 function swipeAction(){

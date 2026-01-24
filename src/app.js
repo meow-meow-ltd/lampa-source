@@ -848,7 +848,12 @@ function loadTask(){
             SETTINGS_KEYS.MENU_PLUGINS,
             SETTINGS_KEYS.MENU_PARENTAL_CONTROL,
             SETTINGS_KEYS.MENU_DATA,
-            SETTINGS_KEYS.MENU_MORE
+            SETTINGS_KEYS.MENU_MORE,
+            SETTINGS_KEYS.HEAD_SEARCH,
+            SETTINGS_KEYS.HEAD_SETTINGS,
+            SETTINGS_KEYS.HEAD_BROADCAST,
+            SETTINGS_KEYS.HEAD_NOTICE,
+            SETTINGS_KEYS.HEAD_PROFILE
         ]
 
         ServiceDbValues.getMany(keys, (data) => {

@@ -12,5 +12,10 @@ module.exports = {
     MENU_PLUGINS: 'menu_plugins',
     MENU_PARENTAL_CONTROL: 'menu_parental_control',
     MENU_DATA: 'menu_data',
-    MENU_MORE: 'menu_more'
+    MENU_MORE: 'menu_more',
+    HEAD_SEARCH: 'head_search',
+    HEAD_SETTINGS: 'head_settings',
+    HEAD_BROADCAST: 'head_broadcast',
+    HEAD_NOTICE: 'head_notice',
+    HEAD_PROFILE: 'head_profile'
 };
