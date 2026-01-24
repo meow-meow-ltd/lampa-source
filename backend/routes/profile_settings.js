@@ -31,16 +31,31 @@ module.exports = {
             const query = url.parse(req.url, true).query;
             const key = query.key;
 
-            if (!key) return json(res, 400, { secuses: false, text: 'Missing key' });
-
-            db.get(
-                "SELECT value FROM profile_settings WHERE profile_id=? AND key=?",
-                [profileId, key],
-                (err, row) => {
-                    if (err) return json(res, 500, { secuses: false, error: err.message });
-                    json(res, 200, { secuses: true, value: row ? row.value : null });
-                }
-            );
+            if (key) {
+                db.get(
+                    "SELECT value FROM profile_settings WHERE profile_id=? AND key=?",
+                    [profileId, key],
+                    (err, row) => {
+                        if (err) return json(res, 500, { secuses: false, error: err.message });
+                        json(res, 200, { secuses: true, value: row ? row.value : null });
+                    }
+                );
+            } else {
+                db.all(
+                    "SELECT key, value FROM profile_settings WHERE profile_id=?",
+                    [profileId],
+                    (err, rows) => {
+                        if (err) return json(res, 500, { secuses: false, error: err.message });
+                        
+                        const settings = {};
+                        rows.forEach(row => {
+                            settings[row.key] = row.value;
+                        });
+                        
+                        json(res, 200, { secuses: true, value: settings });
+                    }
+                );
+            }
             return;
         }
 
