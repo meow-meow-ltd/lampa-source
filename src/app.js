@@ -162,6 +162,9 @@ Arrays.extend(window.lampa_settings,{
     // Использовать аккаунты CUB
     account_use: true,
 
+    // Провайдер аккаунта: 'cub' (облако CUB) или 'local' (локальный backend)
+    account_provider: 'local',
+
     // Синхронизировать закладки, таймкоды и прочее
     account_sync: true,
 

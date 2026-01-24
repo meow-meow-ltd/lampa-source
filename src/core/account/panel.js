@@ -21,23 +21,33 @@ function init(){
 
 function render(body){
     let account = Permit.account
-    let signed  = Boolean(Permit.token)
-    let premium = Utils.countDays(Date.now(), Permit.user.premium)
+    let signed  = Permit.isLocal ? Permit.access : Boolean(Permit.token)
+    let premium = Permit.isLocal ? 1 : Utils.countDays(Date.now(), Permit.user.premium)
 
     if(!window.lampa_settings.account_sync){
         body.find('[data-name="account_use"]').remove()
     }
 
-    Utils.qrcode('https://' + Manifest.cub_site, body.find('.ad-server__qr'))
+    if(Permit.isCub){
+        Utils.qrcode('https://' + Manifest.cub_site, body.find('.ad-server__qr'))
+    }
+    else{
+        body.find('.ad-server__qr').closest('.ad-server').addClass('hide')
+    }
 
+    if(Permit.isLocal && Permit.access && (!account.profile || !account.profile.id)){
+        return Profile.check(()=>{
+            render(body)
+        })
+    }
     
     body.find('.settings--account-signin').toggleClass('hide',signed)
     body.find('.settings--account-user').toggleClass('hide',!signed)
     body.find('.settings-param__label').toggleClass('hide',!Boolean(premium))
 
     if(signed){
-        body.find('.settings--account-user-info .settings-param__value').text(account.email)
-        body.find('.settings--account-user-profile .settings-param__value').text(account.profile.name)
+        body.find('.settings--account-user-info .settings-param__value').text(Permit.isLocal ? 'Local' : account.email)
+        body.find('.settings--account-user-profile .settings-param__value').text(account.profile.name || '')
 
         body.find('.settings--account-user-out').on('hover:enter',()=>{
             Api.logout()
@@ -134,7 +144,7 @@ function render(body){
             })
         })
 
-        body.find('.settings--account-user-profile .settings-param__value').text(account.profile.name)
+        body.find('.settings--account-user-profile .settings-param__value').text(account.profile.name || '')
 
         body.find('.settings--account-user-profile').on('hover:enter',()=>{
             Profile.select(()=>{

@@ -222,7 +222,12 @@ function update(params){
         data:{ hash: params.hash, road }
     })
 
-    if(!params.received && Account.hasPremium()) Socket.send('timeline',{params})
+    if(!params.received){
+        if((window.lampa_settings.account_provider || 'cub') === 'local'){
+            if(Account.Permit.sync) Account.Api.load('timeline/update', {}, {params}).catch(()=>{})
+        }
+        else if(Account.hasPremium()) Socket.send('timeline',{params})
+    }
 }
 
 /**

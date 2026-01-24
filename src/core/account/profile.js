@@ -130,7 +130,9 @@ function select(callback){
                 let list = items.map((elem, index)=>{
                     elem.title    = elem.name
                     elem.template = 'selectbox_icon'
-                    elem.icon     = '<img src="' + Utils.protocol() + Manifest.cub_domain +'/img/profiles/'+elem.icon+'.png" class="size-medium" />'
+                    elem.icon     = Permit.isLocal
+                        ? Template.string('icon_profile')
+                        : '<img src="' + Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + elem.icon + '.png" class="size-medium" />'
                     elem.clone    = clone[index]
                     elem.subtitle = elem.main ? Lang.translate('account_profile_main') : elem.child ? Lang.translate('account_profile_child') + ' ' + '(' + Lang.translate('filter_rating_to') + ' ' + (elem.age || 12) + ')' : ''
 

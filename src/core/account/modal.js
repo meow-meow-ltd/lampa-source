@@ -73,6 +73,24 @@ function premium(){
     let enabled = Controller.enabled().name
     let html    = Template.js('account_premium')
 
+    if((window.lampa_settings.account_provider || 'cub') === 'local'){
+        Modal.open({
+            title: '',
+            html: $(html),
+            size: Platform.tv() ? 'full' : 'medium',
+            scroll: {
+                nopadding: true
+            },
+            onBack: ()=>{
+                Modal.close()
+
+                Controller.toggle(enabled)
+            }
+        })
+
+        return
+    }
+
     if(Platform.tv()){
         html.addClass('layer--' + (Platform.mouse() ? 'wheight' : 'height'))
         

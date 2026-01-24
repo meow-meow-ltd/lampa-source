@@ -10,6 +10,7 @@ import Tracker from '../tracker'
 import Noty from '../../interaction/noty'
 import Lang from '../lang'
 import Bell from '../../interaction/bell'
+import Timer from '../timer'
 
 let tracker = new Tracker('account_timeline_sync')
 

@@ -31,6 +31,7 @@ let timers_added = false
 
 function connect(){
     if(!window.lampa_settings.socket_use) return
+    if((window.lampa_settings.account_provider || 'cub') === 'local' && !window.lampa_settings.socket_url) return
 
     let ws = Platform.is('orsay') || Platform.is('netcast') ? 'ws://' : 'wss://'
     let pt = Platform.is('orsay') || Platform.is('netcast') ? ':8080' : ':8443'

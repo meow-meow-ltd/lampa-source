@@ -36,6 +36,11 @@ function load(path, params = {}, post = false){
 }
 
 function persons(success, error){
+    if((window.lampa_settings.account_provider || 'cub') === 'local'){
+        if(error) error({decode_code: 403})
+        return
+    }
+
     if(Permit.access && !window.lampa_settings.disable_features.persons){
         load('person/list').then((data)=>{
             Storage.set('person_subscribes_id', data.results.map(a=>a.person_id))
@@ -47,6 +52,18 @@ function persons(success, error){
 }
 
 function user(success, error){
+    if((window.lampa_settings.account_provider || 'cub') === 'local'){
+        let local_user = {
+            id: 1,
+            premium: Date.now() + 1000 * 60 * 60 * 24 * 365 * 100
+        }
+
+        Storage.set('account_user', JSON.stringify(local_user))
+
+        if(success) success(local_user)
+        return
+    }
+
     if(Permit.access){
         let token = Permit.token
 
@@ -124,6 +141,11 @@ function notices(call){
 }
 
 function subscribes(params = {}, success, error){
+    if((window.lampa_settings.account_provider || 'cub') === 'local'){
+        if(success) success({results: []})
+        return
+    }
+
     if(Permit.access){
         load('notifications/all').then((result)=>{
             if(params.to_card_subscribe){

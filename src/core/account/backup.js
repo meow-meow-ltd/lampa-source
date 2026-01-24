@@ -48,6 +48,21 @@ function publish(callback){
         // Удаляем из бэкапа app.js
         let serialized = JSON.stringify(data, (key, value) => key === 'app.js' ? undefined : value)
 
+        if((window.lampa_settings.account_provider || 'cub') === 'local'){
+            Api.load('users/backup/export', {}, {data: serialized}).then((j)=>{
+                callback && callback()
+
+                if(j.secuses) Noty.show(Lang.translate('account_export_secuses'))
+                else Noty.show(Lang.translate('account_export_fail'))
+            }).catch(()=>{
+                callback && callback()
+
+                Noty.show(Lang.translate('account_export_fail'))
+            })
+
+            return
+        }
+
         try{
             file = new File([serialized], "backup.json", {
                 type: "text/plain",

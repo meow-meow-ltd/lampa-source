@@ -135,7 +135,7 @@ function push(method, type, card){
  * @return {void}
  */
 function saveToCache(version){
-    Cache.rewriteData('other', 'account_bookmarks_' + Permit.account.profile.id, bookmarks).then(()=>{
+    Cache.rewriteData('other', 'account_bookmarks_' + Permit.profileId, bookmarks).then(()=>{
         tracker_data.version = version
         tracker_data.time    = Date.now()
 
@@ -153,7 +153,7 @@ function saveToCache(version){
 function loadFromCache(call){
     if(bookmarks.length) return call && call()
 
-    Cache.getData('other', 'account_bookmarks_' + Permit.account.profile.id).then((data)=>{
+    Cache.getData('other', 'account_bookmarks_' + Permit.profileId).then((data)=>{
         bookmarks = data && data.length ? data : []
 
         console.log('Account', 'bookmarks cache load:', bookmarks.length, 'data:', data ? 'yes' : 'no')
@@ -441,6 +441,29 @@ function createMap(){
  * @return {void}
  */
 function sync(callback){
+    if((window.lampa_settings.account_provider || 'cub') === 'local'){
+        Api.load('bookmarks/sync', {}, {
+            data: localStorage.getItem('favorite') || '{}'
+        }).then((j)=>{
+            if(j.secuses){
+                Noty.show(Lang.translate('account_sync_secuses'))
+                update()
+            }
+            else{
+                console.error('Account', 'bookmarks sync fail response')
+                Noty.show(Lang.translate('account_export_fail'))
+            }
+
+            callback && callback()
+        }).catch(()=>{
+            console.error('Account', 'bookmarks sync fail')
+            Noty.show(Lang.translate('account_export_fail'))
+            callback && callback()
+        })
+
+        return
+    }
+
     let file
     
     try{
@@ -479,7 +502,7 @@ function sync(callback){
             processData: false,
             headers: {
                 token: Permit.token,
-                profile: Permit.account.profile.id
+                profile: Permit.profileId
             },
             success: function (j) {
                 if(j.secuses){
