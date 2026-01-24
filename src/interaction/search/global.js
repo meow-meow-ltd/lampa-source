@@ -26,6 +26,9 @@ let html = Template.elem('div', {class: 'main-search'}),
     listener = Subscribe()
 
 function init(){
+    let setting = window.lampa_settings.head_search
+    if(setting === '0' || setting === 0 || setting === false || setting === 'false') return
+
     Head.addIcon(Template.string('icon_search'), open).addClass('open--search')
 }
 

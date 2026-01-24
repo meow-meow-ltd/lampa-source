@@ -192,18 +192,18 @@
                 
                 data.forEach(item => {
                     const tr = document.createElement('tr');
-                    const isMenuItem = item.key.startsWith('menu_');
+                    const isBoolItem = item.key.startsWith('menu_') || item.key.startsWith('head_');
                     tr.innerHTML = `
                         <td class="key-col">${item.key}</td>
                         <td class="val-col">
-                            ${isMenuItem ? 
+                            ${isBoolItem ? 
                                 `<input type="checkbox" ${item.value == '1' ? 'checked' : ''} onchange="toggleValue('${item.key}', this.checked)">` : 
                                 `<input type="text" id="val-${item.key}" value="${item.value}" style="width: 100%; box-sizing: border-box;">`
                             }
                         </td>
                         <td class="vis-col">${item.visible ? '+' : '-'}</td>
                         <td class="act-col">
-                            ${isMenuItem ? '' : `<button class="btn-save" onclick="updateSetting('${item.key}')" style="margin-right: 5px; background: #00b894;">Save</button>`}
+                            ${isBoolItem ? '' : `<button class="btn-save" onclick="updateSetting('${item.key}')" style="margin-right: 5px; background: #00b894;">Save</button>`}
                         </td>
                     `;
                     tbody.appendChild(tr);

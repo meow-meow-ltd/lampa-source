@@ -11,6 +11,9 @@ let timer
 let listener
 
 function init(){
+    let setting = window.lampa_settings.head_broadcast
+    if(setting === '0' || setting === 0 || setting === false || setting === 'false') return
+
     let timer, activity
 
     let broadcast = Head.addIcon(Template.string('icon_broadcast'), ()=>{

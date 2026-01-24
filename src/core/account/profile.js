@@ -20,6 +20,9 @@ import Bell from '../../interaction/bell'
 let profile_icon
 
 function init(){
+    let setting = window.lampa_settings.head_profile
+    if(setting === '0' || setting === 0 || setting === false || setting === 'false') return
+
     profile_icon = Template.elem('div', {class: 'head__action selector open--profile'})
 
     profile_icon.on('hover:enter', select.bind(null, Controller.toggle.bind(Controller, 'head')))

@@ -33,6 +33,9 @@ class Notice{
     }
 
     init(){
+        let setting = window.lampa_settings.head_notice
+        if(setting === '0' || setting === 0 || setting === false || setting === 'false') return
+
         this.icon = Head.addIcon(Template.string('icon_bell'), this.open.bind(this))
         this.icon.addClass('notice--icon')
 
