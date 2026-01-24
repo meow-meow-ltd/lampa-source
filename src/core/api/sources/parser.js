@@ -131,7 +131,7 @@ function get(params = {}, oncomplite, onerror){
     } 
     else if(Storage.field('parser_torrent_type') == 'torrserver'){
         if(Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL)){
-            url = Utils.checkEmptyUrl(Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL))
+            url = Utils.checkHttp(Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL), true)
             torrserver(params, complite, error)
         } else {
             error(Lang.translate('torrent_parser_set_link') + ': TorrServer')

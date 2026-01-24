@@ -14,7 +14,7 @@ let network = new Request()
 function url(){
     let u = ip()
 
-    return u ? Utils.checkEmptyUrl(u) : u
+    return u ? Utils.checkHttp(u, true) : u
 }
 
 function ip(){
