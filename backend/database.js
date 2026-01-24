@@ -156,6 +156,14 @@ let db = new sqlite3.Database('./database.sqlite', (err) => {
                 setVersion(4);
             }
 
+            if (version < 5) {
+                safeRun(db, "ALTER TABLE profiles ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+                safeRun(db, "CREATE INDEX IF NOT EXISTS profiles_sort_order ON profiles(sort_order)");
+                safeRun(db, "UPDATE profiles SET sort_order = id WHERE sort_order IS NULL OR sort_order = 0");
+
+                setVersion(5);
+            }
+
             safeRun(
                 db,
                 `INSERT INTO settings(key, value, visible) VALUES(?, 'admin', 0) ON CONFLICT(key) DO NOTHING`,
@@ -171,6 +179,11 @@ let db = new sqlite3.Database('./database.sqlite', (err) => {
                 db,
                 `INSERT INTO settings(key, value, visible) VALUES(?, '', 1) ON CONFLICT(key) DO NOTHING`,
                 [SETTINGS_KEYS.TORRSERVER_URL]
+            );
+            safeRun(
+                db,
+                `INSERT INTO settings(key, value, visible) VALUES(?, '', 1) ON CONFLICT(key) DO NOTHING`,
+                [SETTINGS_KEYS.JACKETT_URL]
             );
         });
     }

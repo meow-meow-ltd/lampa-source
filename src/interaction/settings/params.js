@@ -723,7 +723,7 @@ trigger('menu_always', false)
 /**
  * Добовляем поля
  */
-select('jackett_url','','')
+select(SETTINGS_KEYS.JACKETT_URL,'','')
 select('jackett_key','','')
 select('prowlarr_url','','');
 select('prowlarr_key','','');

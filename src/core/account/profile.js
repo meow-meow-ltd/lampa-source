@@ -112,17 +112,14 @@ function select(callback){
                 let items = Arrays.clone(result.profiles)
                 let clone = Arrays.clone(result.profiles)
 
-                items.reverse()
-                clone.reverse()
-
-                let select  = []
-                let maximum = Lampa.Account.hasPremium() ? 8 : 3
-
+                items.sort((a, b) => (a.sort || 0) - (b.sort || 0))
+                clone.sort((a, b) => (a.sort || 0) - (b.sort || 0))
+                
                 let list = items.map((elem, index)=>{
                     elem.title    = elem.name
                     elem.template = 'selectbox_icon'
                     elem.icon     = Permit.isLocal
-                        ? Template.string('icon_profile')
+                        ? (elem.icon || Template.string('icon_profile'))
                         : '<img src="' + Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + elem.icon + '.png" />'
                     elem.clone    = clone[index]
                     elem.subtitle = elem.main ? Lang.translate('account_profile_main') : elem.child ? Lang.translate('account_profile_child') : ''
@@ -132,45 +129,7 @@ function select(callback){
                     return elem
                 })
 
-                
-                let additional = {
-                    title: Lang.translate('account_profile_add'),
-                    template: 'selectbox_icon',
-                    icon: '<svg><use xlink:href="#sprite-plus"></use></svg>',
-                    ghost: list.length >= maximum,
-                    onSelect: (a)=>{
-                        callback && callback()
-
-                        if(a.ghost){
-                            Noty.show(Lang.translate('account_profile_limited').replace('{count}', maximum))
-                        }
-                        else{
-                            let contrioller = Controller.enabled().name
-
-                            Input.edit({
-                                title: Lampa.Lang.translate('account_profile_name'),
-                                value: '',
-                                free: true,
-                                nosave: true,
-                                nomic: true
-                            },(name)=>{
-                                Controller.toggle(contrioller)
-
-                                if(name){
-                                    name = Utils.capitalizeFirstLetter(name)
-
-                                    Api.load('profiles/create', {}, {name}).then((result)=>{
-                                        Bell.push({text: Lang.translate('account_profile_created')})
-                                    }).catch((e)=>{
-                                        Noty.show(Lang.translate(e.decode_code == 200 ? 'account_profile_limited' : 'network_error').replace('{count}', maximum))
-                                    })
-                                }
-                            })
-                        }
-                    }
-                }
-                
-                select = [additional].concat(list)
+            
 
                 Select.show({
                     title: Lang.translate('account_profiles'),
