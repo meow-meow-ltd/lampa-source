@@ -17,5 +17,6 @@ module.exports = {
     HEAD_SETTINGS: 'head_settings',
     HEAD_BROADCAST: 'head_broadcast',
     HEAD_NOTICE: 'head_notice',
-    HEAD_PROFILE: 'head_profile'
+    HEAD_PROFILE: 'head_profile',
+    PLUGINS: 'plugins'
 };

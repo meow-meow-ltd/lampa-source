@@ -216,6 +216,11 @@ let db = new sqlite3.Database('./database.sqlite', (err) => {
                     [key]
                 );
             });
+            safeRun(
+                db,
+                `INSERT INTO settings(key, value, visible) VALUES(?, '[]', 1) ON CONFLICT(key) DO NOTHING`,
+                [SETTINGS_KEYS.PLUGINS]
+            );
         });
     }
 });
