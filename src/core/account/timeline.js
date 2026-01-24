@@ -14,6 +14,7 @@ import Timer from '../timer'
 import AccountListener from './listener'
 
 let tracker = new Tracker('account_timeline_sync')
+let updating = false
 
 // Если в changelog пришло больше записей, чем это, проще перекачать дамп: Timeline.update() на каждую запись пишет весь файл в localStorage
 let changelog_max = 500
@@ -86,7 +87,10 @@ function refresh(){
  */
 
 function update(){
+    if(updating) return
+
     if(Permit.sync){
+        updating = true
         // Если с момента последнего обновления прошло больше 10 дней, то загружаем дамп
         if(tracker.time() < Date.now() - 1000 * 60 * 60 * 24 * 10){
             console.log('Account', 'timeline start full update', tracker.version())
@@ -101,6 +105,8 @@ function update(){
                     let name   = 'file_view_' + Permit.account.profile.id
 
                     if(!data.timelines){
+                        updating = false
+
                         return console.error('Account', 'timeline wrong dump format, no timelines:', result)
                     }
 
@@ -146,9 +152,13 @@ function update(){
 
                     Timeline.read() // Нужно прочитать прогресс просмотра из localStorage
 
+                    updating = false
+
                     console.log('Account', 'timeline dump update complete to version', data.version)
                 })
             }).catch(()=>{
+                updating = false
+
                 console.error('Account', 'timeline dump error, not loaded')
             })
         }
@@ -176,8 +186,12 @@ function update(){
                     time: Date.now()
                 })
 
+                updating = false
+
                 console.log('Account', 'timeline update since complete to version', tracker.version())
             }).catch((e)=>{
+                updating = false
+
                 console.warn('Account', 'timeline update changelog error, no response', e)
             })
         }
