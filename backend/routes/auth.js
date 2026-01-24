@@ -1,8 +1,9 @@
 const db = require('../database');
+const SETTINGS_KEYS = require('../../src/utils/constants');
 
 module.exports = {
     login: (req, res) => {
-        db.get("SELECT value FROM settings WHERE key = 'admin_password'", (err, row) => {
+        db.get("SELECT value FROM settings WHERE key = ?", [SETTINGS_KEYS.ADMIN_PASSWORD], (err, row) => {
             if (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
@@ -10,7 +11,7 @@ module.exports = {
             }
             const password = row ? row.value : 'admin';
             if (req.body.password === password) {
-                db.get("SELECT value FROM settings WHERE key = 'admin_token'", (err, tokenRow) => {
+                db.get("SELECT value FROM settings WHERE key = ?", [SETTINGS_KEYS.ADMIN_TOKEN], (err, tokenRow) => {
                     const validToken = tokenRow?.value;
                     res.setHeader('Set-Cookie', `auth_token=${validToken}; Path=/; HttpOnly`);
                     res.writeHead(200, { 'Content-Type': 'application/json' });

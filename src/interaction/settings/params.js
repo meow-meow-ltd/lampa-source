@@ -7,6 +7,7 @@ import Controller from '../../core/controller'
 import Subscribe from '../../utils/subscribe'
 import Lang from '../../core/lang'
 import Manifest from '../../core/manifest'
+import SETTINGS_KEYS from '../../utils/constants'
 
 let values   = {}
 let defaults = {}
@@ -726,7 +727,7 @@ select('jackett_url','','')
 select('jackett_key','','')
 select('prowlarr_url','','');
 select('prowlarr_key','','');
-select('torrserver_url','','')
+select(SETTINGS_KEYS.TORRSERVER_URL,'','')
 select('torrserver_url_two','','')
 select('torrserver_login','','')
 select('torrserver_password','','')

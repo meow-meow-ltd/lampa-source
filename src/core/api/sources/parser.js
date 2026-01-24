@@ -8,6 +8,7 @@ import Torrent from '../../../interaction/torrent'
 import Torserver from '../../../interaction/torserver'
 import Platform from '../../platform'
 import CardParser from '../../../interaction/card_parser/card_parser'
+import SETTINGS_KEYS from '../../../utils/constants'
 
 let url
 let network = new Reguest()
@@ -86,7 +87,7 @@ function init(){
     }
 
     Storage.listener.follow('change',(e)=>{
-        if(e.name == 'parse_in_search' || e.name == 'torrserver_url' || e.name == 'torrserver_url_two' || e.name == 'torrserver_use_link'){
+        if(e.name == 'parse_in_search' || e.name == SETTINGS_KEYS.TORRSERVER_URL || e.name == 'torrserver_url_two' || e.name == 'torrserver_use_link'){
             Search.removeSource(source)
 
             addSource()
@@ -129,8 +130,8 @@ function get(params = {}, oncomplite, onerror){
         }
     } 
     else if(Storage.field('parser_torrent_type') == 'torrserver'){
-        if(Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : 'torrserver_url')){
-            url = Utils.checkEmptyUrl(Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : 'torrserver_url'))
+        if(Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL)){
+            url = Utils.checkEmptyUrl(Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL))
             torrserver(params, complite, error)
         } else {
             error(Lang.translate('torrent_parser_set_link') + ': TorrServer')

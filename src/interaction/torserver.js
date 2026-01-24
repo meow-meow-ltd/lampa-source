@@ -7,6 +7,7 @@ import Modal from './modal'
 import Lang from '../core/lang'
 import EpisodeParser from '../utils/episodes_parser'
 import Arrays from '../utils/arrays'
+import SETTINGS_KEYS from '../utils/constants'
 
 let network = new Request()
 
@@ -17,7 +18,7 @@ function url(){
 }
 
 function ip(){
-    let one = Storage.get('torrserver_url')
+    let one = Storage.get(SETTINGS_KEYS.TORRSERVER_URL)
     let two = Storage.get('torrserver_url_two')
 
     return Storage.field('torrserver_use_link') == 'two' ? two || one : one || two

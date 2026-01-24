@@ -3,6 +3,7 @@ import Main from '../interaction/items/main'
 import Background from '../interaction/background'
 import Utils from '../utils/utils'
 import Router from '../core/router'
+import SETTINGS_KEYS from '../utils/constants'
 
 /**
  * Компонент главной страницы
@@ -20,9 +21,9 @@ function component(object){
             if(typeof nextCall == 'function') next = nextCall
 
             if (Lampa.DbValues) {
-                Lampa.DbValues.get('torrserver_url', (url) => {
+                Lampa.DbValues.get(SETTINGS_KEYS.TORRSERVER_URL, (url) => {
                     if (url) {
-                        Lampa.Storage.set('torrserver_url', url)
+                        Lampa.Storage.set(SETTINGS_KEYS.TORRSERVER_URL, url)
                     }
                 })
             }
