@@ -31,7 +31,8 @@ module.exports = {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true }));
             });
-        } else if (req.method === 'DELETE') {
+        }
+ else if (req.method === 'DELETE') {
             const key = req.url.split('/').pop();
              db.run(`DELETE FROM settings WHERE key=?`, [key], function(err) {
                 if (err) {

@@ -11,6 +11,18 @@ function get(key, callback) {
     })
 }
 
+function getMany(keys, callback) {
+    network.silent('/api/values', (data) => {
+        callback(data)
+    }, (error) => {
+        console.log('ServiceDbValues', 'Error:', error)
+        callback({})
+    }, {
+        keys: keys
+    })
+}
+
 export default {
-    get
+    get,
+    getMany
 }

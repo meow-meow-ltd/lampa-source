@@ -22,7 +22,7 @@ module.exports = function(req, res, next) {
                     adminParams.serve(req, res, next);
                 } else if (req.url.startsWith('/api/settings')) {
                     settingsParams.handle(req, res);
-                } else if (req.url.startsWith('/api/value')) {
+                } else if (req.url.startsWith('/api/values') || req.url.startsWith('/api/value')) {
                     dataParams.handle(req, res);
                 } else if (req.url.startsWith('/api/profiles')) {
                     profilesParams.handle(req, res);

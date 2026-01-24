@@ -19,6 +19,7 @@ function get(key) {
 }
 
 function set(key, value) {
+    if (value === null) return;
     return new Promise((resolve) => {
         if (!canUse()) return resolve(false)
 
