@@ -52,6 +52,56 @@ module.exports = {
                  </html>
              `);
          }
-    });
-}
+     });
+    },
+
+    handleDevices: (req, res) => {
+        db.get("SELECT value FROM settings WHERE key = ?", [SETTINGS_KEYS.ADMIN_TOKEN], (err, tokenRow) => {
+            const validToken = tokenRow?.value;
+            if (req.cookies['auth_token'] !== validToken) {
+                res.writeHead(401);
+                return res.end();
+            }
+
+            if (req.url === '/api/admin/devices' && req.method === 'GET') {
+                db.all("SELECT id, device_id, ip, user_agent, status, attempts, last_attempt_at, blocked_until, last_seen_at FROM device_access", [], (err, rows) => {
+                    if (err) {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        return res.end(JSON.stringify({ error: err.message }));
+                    }
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(rows));
+                });
+            } else if (req.url === '/api/admin/device/action' && req.method === 'POST') {
+                const { id, action } = req.body;
+                let sql = '';
+                let params = [id];
+
+                if (action === 'unblock') {
+                    sql = "UPDATE device_access SET status='pending', attempts=0, blocked_until=NULL WHERE id=?";
+                } else if (action === 'revoke') {
+                    sql = "UPDATE device_access SET status='pending', token_hash=NULL WHERE id=?";
+                } else if (action === 'delete') {
+                    sql = "DELETE FROM device_access WHERE id=?";
+                }
+
+                if (sql) {
+                    db.run(sql, params, (err) => {
+                        if (err) {
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            return res.end(JSON.stringify({ error: err.message }));
+                        }
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true }));
+                    });
+                } else {
+                    res.writeHead(400);
+                    res.end();
+                }
+            } else {
+                res.writeHead(404);
+                res.end();
+            }
+        });
+    }
 };

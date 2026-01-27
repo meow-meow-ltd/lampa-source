@@ -140,6 +140,7 @@ import watched_history from '../templates/watched_history'
 import icons_sprite from '../templates/icons/sprite'
 import warning from '../templates/warning'
 import reaction_ask from '../templates/player/reaction'
+import pin_gate from '../templates/pin_gate'
 
 
 let templates = {
@@ -282,7 +283,8 @@ let templates = {
     watched_history,
     icons_sprite,
     warning,
-    reaction_ask
+    reaction_ask,
+    pin_gate
 }
 
 let created = {}

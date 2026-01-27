@@ -112,6 +112,7 @@ import ContentRows from './core/content_rows'
 import Emit from './utils/emit'
 import Router from './core/router'
 import Timer from './core/timer'
+import PINGate from './interaction/pin_gate'
 import SETTINGS_KEYS from './utils/constants'
 
 import ServiceTorserver from './services/torrserver'
@@ -780,6 +781,18 @@ function showApp() {
     startApp()
 }
 
+
+/**
+ * Проверка устройства
+ */
+function checkDevice() {
+    if (document.cookie.match(/(?:^|; )device_token=([^;]*)/)) {
+            loadTask()
+        } else {
+            PINGate.show(loadTask)
+        }
+}
+
 /**
  * Приоритетная загрузка
  */
@@ -924,7 +937,7 @@ function loadLang() {
 
     LoadingProgress.step(1)
 
-    if (['ru', 'en'].indexOf(code) >= 0) loadTask()
+    if (['ru', 'en'].indexOf(code) >= 0) checkDevice()
     else {
         LoadingProgress.status('Loading language')
 
@@ -942,9 +955,9 @@ function loadLang() {
                 }
                 catch (e) { }
 
-                loadTask()
+                checkDevice()
             },
-            error: loadTask
+            error: checkDevice
         })
     }
 }

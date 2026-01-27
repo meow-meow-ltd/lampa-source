@@ -5,6 +5,8 @@ export default {
     back: 'Назад',
     ready: 'Готово',
     close_app_modal: 'Ви впевнені, що хочете залишити програму?',
+    pin_gate_ip_blocked: 'IP заблоковано. Занадто багато спроб.',
+    pin_gate_retry_in: 'Повторіть за {time} хв.',
     connected_seeds: 'підкл.',
     show_more: 'Показати ще',
     more_results: 'Показати більше результатів',
