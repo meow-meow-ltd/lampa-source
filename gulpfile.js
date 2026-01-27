@@ -1,3 +1,4 @@
+require('dotenv').config()
 /** Что-бы все не пропало! **/
 process.on('uncaughtException', function (err) {
     console.log(err)

@@ -16,6 +16,8 @@ export default {
     back: 'Назад',
     ready: 'Готово',
     close_app_modal: 'Вы уверены, что хотите покинуть приложение?',
+    pin_gate_ip_blocked: 'IP заблокирован. Слишком много попыток.',
+    pin_gate_retry_in: 'Повторите через {time} мин.',
     connected_seeds: 'подкл.',
 
     search: 'Поиск',

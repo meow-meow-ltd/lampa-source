@@ -156,6 +156,7 @@
             <button class="tab-button active" data-tab="settings">Settings</button>
             <button class="tab-button" data-tab="profiles">Profiles</button>
             <button class="tab-button" data-tab="plugins">Plugins</button>
+            <button class="tab-button" data-tab="devices">Devices</button>
         </div>
 
         <div id="tab-settings" class="tab-panel active">
@@ -211,6 +212,27 @@
                     </thead>
                     <tbody>
                         <!-- Profiles will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-devices" class="tab-panel">
+            <div class="card">
+                <h3>Devices</h3>
+                <table id="devicesTable">
+                    <thead>
+                        <tr>
+                            <th class="column-name">ID</th>
+                            <th class="column-name">Device ID</th>
+                            <th class="column-name">IP</th>
+                            <th class="column-name">Status</th>
+                            <th class="column-name">Last Seen</th>
+                            <th class="column-name">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Devices will be loaded here -->
                     </tbody>
                 </table>
             </div>
@@ -489,12 +511,67 @@
             }
         }
 
+        async function loadDevices() {
+            try {
+                const res = await fetch('/api/admin/devices');
+                if (res.status === 401) {
+                    window.location.reload();
+                    return;
+                }
+                const data = await res.json();
+                const tbody = document.querySelector('#devicesTable tbody');
+                tbody.innerHTML = '';
+
+                data.forEach(item => {
+                    const tr = document.createElement('tr');
+                    const lastSeen = item.last_seen_at ? new Date(item.last_seen_at).toLocaleString() : 'Never';
+                    tr.innerHTML = `
+                        <td class="id-col">${item.id}</td>
+                        <td class="val-col" style="font-size: 12px; font-family: monospace;">${item.device_id}</td>
+                        <td class="val-col">${item.ip || '-'}</td>
+                        <td class="vis-col">
+                            <span style="color: ${item.status === 'allowed' ? '#00b894' : item.status === 'blocked' ? '#d63031' : '#f1c40f'}">
+                                ${item.status.toUpperCase()}
+                            </span>
+                            ${item.attempts > 0 ? `<br><small>Attempts: ${item.attempts}</small>` : ''}
+                        </td>
+                        <td class="val-col" style="font-size: 11px;">${lastSeen}</td>
+                        <td class="act-col">
+                            ${item.status === 'blocked' ? `<button onclick="deviceAction(${item.id}, 'unblock')" style="padding: 4px 8px; font-size: 12px; background: #00b894;">Unblock</button>` : ''}
+                            <button onclick="deviceAction(${item.id}, 'revoke')" style="padding: 4px 8px; font-size: 12px; background: #e17055;">Revoke</button>
+                            <button onclick="deviceAction(${item.id}, 'delete')" style="padding: 4px 8px; font-size: 12px; background: #d63031;">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Error loading devices:', e);
+            }
+        }
+
+        async function deviceAction(id, action) {
+            if (action === 'delete' && !confirm('Are you sure?')) return;
+            
+            const res = await fetch('/api/admin/device/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, action })
+            });
+
+            if (res.ok) {
+                loadDevices();
+            } else {
+                alert('Action failed');
+            }
+        }
+
         function setupTabs() {
             const buttons = Array.from(document.querySelectorAll('.tab-button'));
             const panels = {
                 settings: document.getElementById('tab-settings'),
                 profiles: document.getElementById('tab-profiles'),
-                plugins: document.getElementById('tab-plugins')
+                plugins: document.getElementById('tab-plugins'),
+                devices: document.getElementById('tab-devices')
             };
 
             buttons.forEach(btn => {
@@ -514,6 +591,7 @@
         loadSettings();
         loadProfiles();
         loadPlugins();
+        loadDevices();
     </script>
 </body>
 </html>

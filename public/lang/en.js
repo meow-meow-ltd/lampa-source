@@ -16,6 +16,8 @@ export default {
     back: 'Back',
     ready: 'Ready',
     close_app_modal: 'Are you sure you want to leave the app?',
+    pin_gate_ip_blocked: 'IP Blocked. Too many attempts.',
+    pin_gate_retry_in: 'Try again in {time} min.',
     connected_seeds: 'connected',
 
     search: 'Search',

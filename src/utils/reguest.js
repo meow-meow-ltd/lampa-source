@@ -542,10 +542,22 @@ function Request(){
                 if(params.beforeSend){
                     xhr.setRequestHeader(params.beforeSend.name, params.beforeSend.value)
                 }
+
+                // Removed X-Device-Token header as we now use cookies
             }
         }
 
-        if(params.withCredentials){
+        let originalError = data.error;
+        data.error = (jqXHR, exception) => {
+            if (jqXHR.status === 401 && jqXHR.responseJSON && (jqXHR.responseJSON.error === 'token_required' || jqXHR.responseJSON.error === 'invalid_token')) {
+                document.cookie = "device_token=;path=/;expires=Thu, 01 Jan 1970 00:00:00 UTC" // Clear invalid token cookie
+                window.location.reload() // Force PIN Gate re-validation
+                return
+            }
+            if (originalError) originalError(jqXHR, exception)
+        }
+
+        if(params.withCredentials || (params.url && params.url.indexOf('/api/') === 0)){
             data.xhrFields = {
                 withCredentials: true
             }

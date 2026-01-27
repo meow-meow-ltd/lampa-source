@@ -165,6 +165,40 @@ let db = new sqlite3.Database(dbPath, (err) => {
                 setVersion(5);
             }
 
+            if (version < 6) {
+                safeRun(db, `
+                    CREATE TABLE IF NOT EXISTS device_access (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        device_id TEXT NOT NULL,
+                        ip TEXT,
+                        user_agent TEXT,
+                        status TEXT NOT NULL DEFAULT 'pending',
+                        attempts INTEGER DEFAULT 0,
+                        last_attempt_at INTEGER,
+                        blocked_until INTEGER,
+                        last_seen_at INTEGER,
+                        token_hash TEXT
+                    )
+                `);
+                safeRun(db, "CREATE UNIQUE INDEX IF NOT EXISTS device_access_id ON device_access(device_id)");
+
+                setVersion(6);
+            }
+
+            if (version < 7) {
+                safeRun(db, `
+                    CREATE TABLE IF NOT EXISTS ip_rate_limits (
+                        ip TEXT PRIMARY KEY,
+                        attempts INTEGER DEFAULT 0,
+                        first_attempt_at INTEGER NOT NULL,
+                        blocked_until INTEGER
+                    )
+                `);
+                safeRun(db, "CREATE INDEX IF NOT EXISTS ip_rate_limits_blocked ON ip_rate_limits(blocked_until)");
+
+                setVersion(7);
+            }
+
             safeRun(
                 db,
                 `INSERT INTO settings(key, value, visible) VALUES(?, 'admin', 0) ON CONFLICT(key) DO NOTHING`,
@@ -222,6 +256,14 @@ let db = new sqlite3.Database(dbPath, (err) => {
                 `INSERT INTO settings(key, value, visible) VALUES(?, '[]', 1) ON CONFLICT(key) DO NOTHING`,
                 [SETTINGS_KEYS.PLUGINS]
             );
+
+            // Cleanup expired IP rate limits periodically (every hour)
+            const rateLimit = require('./rate-limit');
+            setInterval(() => {
+                if (rateLimit.cleanupExpiredEntries) {
+                    rateLimit.cleanupExpiredEntries();
+                }
+            }, 60 * 60 * 1000).unref();
         });
     }
 });
