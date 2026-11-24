@@ -1,6 +1,6 @@
 # DELIVERY — як зміни доходять до продакшену
 
-Станом на 2026-11-24. Цей документ описує **реальний** шлях коду в прод (він не збігається з тим, що написано в `README.md` про `docker-compose.yml`).
+Станом на 2026-11-24 (оновлено після відновлення деплою: перереєстровано раннер, додано healthcheck). Цей документ описує **реальний** шлях коду в прод (він не збігається з тим, що написано в `README.md` про `docker-compose.yml`).
 
 ## TL;DR
 
@@ -16,6 +16,7 @@ git push origin main
   │     docker compose -f compose.yaml pull lampa
   │     docker compose -f compose.yaml up -d lampa
   │     docker image prune -f
+  │     curl http://127.0.0.1:9118/   ← healthcheck: джоб падає, якщо застосунок не відповів
   │
   └─► cloudflared (systemd, token-based tunnel, керується з Cloudflare Dashboard)
         https://lampa.niverovskii.com  →  http://localhost:9118  →  контейнер lampa:3000
@@ -31,8 +32,8 @@ git push origin main
 | Репозиторій | `github.com/meow-meow-ltd/lampa-source` | публічний, форк `yumata/lampa-source`; гілки `main`/`develop` |
 | Білд | `.github/workflows/build-and-push.yml` | тригер: push у `main` (+ ручний `workflow_dispatch`); кеш GHA |
 | Реєстр образів | `ghcr.io/meow-meow-ltd/lampa-source` | пакет **приватний**; теги `:latest` і `:<git-sha>` |
-| Деплой | `.github/workflows/deploy.yml` | тригер: `workflow_run` після успішного білда |
-| Раннер деплою | `/opt/actions-runner` | org-рівень, імʼя `home-ubuntu`, юзер `runner`, лейбли `self-hosted,Linux,X64,home,deploy` |
+| Деплой | `.github/workflows/deploy.yml` | тригер: `workflow_run` після успішного білда; `runs-on: group: home-server`; healthcheck + `concurrency: deploy-production` |
+| Раннер деплою | `/opt/actions-runner` | org-рівень, імʼя `home-ubuntu`, юзер `runner`, лейбли `self-hosted,Linux,X64,home,deploy`, **група `home-server`** (id 3) |
 | Служба раннера | `actions.runner.meow-meow-ltd.home-ubuntu.service` | + drop-in `Restart=on-failure` (додано 2026-11-24) |
 | Compose | `/opt/lampa/compose.yaml` | `image: ghcr.io/meow-meow-ltd/lampa-source:latest`, `9118:3000`, `restart: unless-stopped` |
 | Змінні оточення | `/opt/lampa/.env` | `HOST`, `PORT`, `DB_PATH`, `TOTP_SECRET` (не в git) |
@@ -97,7 +98,8 @@ journalctl -u cloudflared --since '1 hour ago' --no-pager
 | Білд зелений, деплой висить у `queued` | немає живого раннера з лейблами `home,deploy`; GitHub видаляє реєстрації раннерів після ~30 днів неактивності | `sudo bash /opt/lampa/scripts/fix-runner.sh` (перереєстрація + `Restart=on-failure` + перевірка GHCR) |
 | `docker compose pull` → `denied: unauthorized` | протермінований PAT юзера `runner` або пакет став приватним/переїхав | оновити `docker login ghcr.io` під `runner` або зробити пакет публічним |
 | Сайт не відкривається, тунель flapping | UDP/QUIC-таймаути в домашній мережі, застарілий `cloudflared` | `systemctl status cloudflared`, оновити бінарник (зараз `--no-autoupdate`, версія 2026.2.0) |
-| Деплой «зелений», але сайт старий | раніше не було healthcheck: `up -d` не перевіряв відповідь | після PR з healthcheck крок падає, якщо `:9118` не відповідає |
+| Деплой вічно висить у `queued` при живому раннері | джоб без явної `group:` іде в **default**-групу, а в неї `allows_public_repositories=false`; репозиторій публічний | у `deploy.yml` явно вказано `runs-on: group: home-server`; перевірити `gh api orgs/meow-meow-ltd/actions/runner-groups` |
+| Деплой «зелений», але сайт старий | раніше не було healthcheck: `up -d` не перевіряв відповідь | з 2026-11-24 крок `Verify the app actually answers` падає, якщо `:9118` не відповідає |
 
 ## Відомі обмеження (свідомо не виправлені)
 
