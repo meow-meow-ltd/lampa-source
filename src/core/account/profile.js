@@ -46,7 +46,7 @@ function init(){
         title: 'account_profiles'
     })
 
-    if(!Permit.token) update()
+    if(Permit.isCub && !Permit.token) update()
 }
 
 /**
@@ -113,9 +113,10 @@ function check(call){
  */
 function select(callback){
     ParentalControl.personal('account_profiles',()=>{
-        if(!Permit.token) return Advert.account()
+        if(Permit.isCub && !Permit.token) return Advert.account()
 
         let account = Permit.account
+        if(!account.profile) account.profile = {id: 0}
 
         Loading.start(()=>{
             Api.clear()
@@ -138,7 +139,9 @@ function select(callback){
 
                     elem.title    = elem.name
                     elem.template = 'selectbox_icon'
-                    elem.icon     = icon || Template.string('icon_profile')
+                    elem.icon     = Permit.isCub
+                        ? '<img src="' + Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + elem.icon + '.png" class="size-medium" />'
+                        : (icon || Template.string('icon_profile'))
                     elem.clone    = clone[index]
                     elem.subtitle = elem.main ? Lang.translate('account_profile_main') : elem.child ? Lang.translate('account_profile_child') + ' ' + '(' + Lang.translate('filter_rating_to') + ' ' + (elem.age || 12) + ')' : ''
 

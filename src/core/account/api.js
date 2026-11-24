@@ -9,29 +9,39 @@ import Modal from './modal'
 let network = new Reguest()
 
 function url(){
+ if((window.lampa_settings.account_provider || 'cub') === 'local'){
+        return window.location.origin.replace(/\/$/,'') + '/api/'
+    }
+
     return Utils.protocol() + Manifest.cub_domain + '/api/'
 }
 
 function load(path, params = {}, post = false){
     return new Promise((resolve, reject)=>{
-        if(Permit.token){
+        let provider = window.lampa_settings.account_provider || 'cub'
+
+        if(provider === 'cub' && !Permit.token) return reject({decode_code: 403})
+
+        let headers = params.headers || {}
+
+        if(provider === 'cub'){
             let account = Permit.account
 
-            Arrays.extend(params, {
-                headers: {
-                    token: account.token,
-                    profile: account.profile.id
-                },
-                timeout: 8000
-            })
-
-            let u = params.url ? params.url : url() + path
-
-            network.silent(u, resolve, reject, post, params)
+            headers.token = account.token
+            headers.profile = account.profile && account.profile.id
         }
         else{
-            reject({decode_code: 403})
+            if(Permit.profileId) headers.profile = Permit.profileId
         }
+
+        Arrays.extend(params, {
+            headers,
+            timeout: 8000
+        })
+
+        let u = params.url ? params.url : url() + path
+
+        network.silent(u, resolve, reject, post, params)
     })
 }
 
@@ -95,6 +105,8 @@ function logout(){
 }
 
 function plugins(call){
+    if((window.lampa_settings.account_provider || 'cub') === 'local') return call([])
+
     if(Permit.access){
         load('plugins/all', {timeout: 3000}).then((result)=>{
             if(result.secuses){
@@ -113,6 +125,8 @@ function plugins(call){
 }
 
 function pluginToggle(plugin, status){
+    if((window.lampa_settings.account_provider || 'cub') === 'local') return
+
     if(Permit.access){
         load((plugin.author ? 'extensions' : 'plugins') + '/status', {}, {
             id: plugin.id,
@@ -122,6 +136,8 @@ function pluginToggle(plugin, status){
 }
 
 function notices(call){
+    if((window.lampa_settings.account_provider || 'cub') === 'local') return call([])
+
     if(Permit.access){
         // советы друзей CUB отдаёт только тем, кто их понимает (NoticeCub.friendRecommend)
         load('notice/all' + (window.lampa_settings.disable_features.friends ? '' : '?with=friend_recommend'), {
@@ -175,6 +191,11 @@ function subscribes(params = {}, success, error){
 }
 
 function subscribeToTranslation(params = {}, call, error){
+    if((window.lampa_settings.account_provider || 'cub') === 'local'){
+        if(error) error({decode_code: 403})
+        return
+    }
+
     if(Permit.access && params.voice){
         load('notifications/add', {}, {
             voice: params.voice,

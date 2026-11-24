@@ -35,18 +35,6 @@ function init(){
     Storage.listener.follow('clear',()=>{
         refresh()
     })
-
-    AccountListener.follow('profile_select', onProfileSelect)
-
-    Timer.add(1000 * 60 * 5, ()=>{
-        update()
-    })
-}
-
-function onProfileSelect(){
-    if(Permit.sync) Timeline.read()
-
-    refresh()
 }
 
 /**
@@ -66,6 +54,18 @@ function send(data){
     Api.load('timeline/update', {}, params).then((result)=>{}).catch((e)=>{
         console.log('Account', 'timeline send error', e)
     })
+
+    AccountListener.follow('profile_select', onProfileSelect)
+
+    Timer.add(1000 * 60 * 5, ()=>{
+        update()
+    })
+}
+
+function onProfileSelect(){
+    if(Permit.sync) Timeline.read()
+
+    refrash()
 }
 
 /**
@@ -102,7 +102,7 @@ function update(){
                     data: result
                 },(e)=>{
                     let data   = e.data
-                    let name   = 'file_view_' + Permit.account.profile.id
+                    let name   = 'file_view_' + Permit.profileId
 
                     if(!data.timelines){
                         updating = false
@@ -110,7 +110,7 @@ function update(){
                         return console.error('Account', 'timeline wrong dump format, no timelines:', result)
                     }
 
-                    console.log('Account', 'timeline dump loaded, items:', Object.keys(data.timelines).length, 'profile id:', Permit.account.profile.id)
+                    console.log('Account', 'timeline dump loaded, items:', Object.keys(data.timelines).length, 'profile id:', Permit.profileId)
 
                     // Если нет файла в localStorage, то создаем его из кеша
                     if(!Storage.value(name)){
