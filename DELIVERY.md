@@ -101,6 +101,35 @@ journalctl -u cloudflared --since '1 hour ago' --no-pager
 | Деплой вічно висить у `queued` при живому раннері | джоб без явної `group:` іде в **default**-групу, а в неї `allows_public_repositories=false`; репозиторій публічний | у `deploy.yml` явно вказано `runs-on: group: home-server`; перевірити `gh api orgs/meow-meow-ltd/actions/runner-groups` |
 | Деплой «зелений», але сайт старий | раніше не було healthcheck: `up -d` не перевіряв відповідь | з 2026-11-24 крок `Verify the app actually answers` падає, якщо `:9118` не відповідає |
 
+## Перевірка перед мерджем: delivery-guard
+
+Ребейз на 400+ комітів upstream одного разу вже тихо з'їв нашу фічу (локальні
+акаунти: `Permit.isLocal`, `profileId`, provider-guard'и — профілі перестали
+завантажуватись). Щоб це не повторилось:
+
+**Локально:**
+
+```bash
+bash scripts/diff-vs-main.sh                 # людський звіт: origin/main vs HEAD
+bash scripts/diff-vs-main.sh --strict        # як у CI: exit 1 при втратах
+bash scripts/diff-vs-main.sh main HEAD~5     # будь-яка пара рефів
+FETCH=1 bash scripts/diff-vs-main.sh         # спершу git fetch origin --prune
+```
+
+Скрипт показує: які файли зникли, які з'явились, скільки рядків базової гілки
+відсутні (топ-20 файлів) — і окремо **гвардить fork-шар**:
+`backend/`, `.github/`, `Dockerfile`, `DELIVERY.md` + маркери
+`account_provider|isLocal|isCub|profileId|device_token|pin_gate|ip_rate_limits`.
+
+**У CI:** `.github/workflows/delivery-guard.yml` запускається на кожен PR у
+`main` і викликає скрипт у `--strict`. Червоне — не мерджити.
+
+**Обхід** (тільки для навмисних видалень): повісити на PR лейбл
+`override:delivery-guard`.
+
+Важливо: великі «втрати» у `src/interaction/player/*`, `src/interaction/advert/*`,
+`*.css` — це upstream-переписування, а не наш код; гвард на них не реагує.
+
 ## Відомі обмеження (свідомо не виправлені)
 
 - У CI **немає тестів/лінту** — `vitest` є, але не запускається.
