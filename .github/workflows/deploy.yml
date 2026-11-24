@@ -8,10 +8,24 @@ on:
 permissions:
   contents: read
 
+# Only one deploy at a time: two quick successful builds must not race on /opt/lampa.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: [self-hosted, home, deploy]
+
+    # NOTE: the runner group must be specified explicitly.
+    # Jobs without `group:` are sent to the organization's DEFAULT runner group, and that
+    # group has allows_public_repositories=false -> since this repository is public, the
+    # job would sit in the queue forever. `home-server` (group 3) has
+    # allows_public_repositories=true and contains this repository in its selected list.
+    runs-on:
+      group: home-server
+      labels: [self-hosted, home, deploy]
+    timeout-minutes: 10
 
     steps:
       - name: Pull and restart via docker compose
@@ -21,3 +35,18 @@ jobs:
           docker compose -f compose.yaml pull lampa
           docker compose -f compose.yaml up -d lampa
           docker image prune -f
+
+      - name: Verify the app actually answers
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            if curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:9118/; then
+              echo "OK: app answers on :9118"
+              exit 0
+            fi
+            echo "attempt ${i}: not answering yet"
+            sleep 2
+          done
+          echo "FAIL: app did not answer on :9118 after deploy; container logs:" >&2
+          docker logs --tail 50 lampa >&2 || true
+          exit 1
