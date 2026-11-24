@@ -10,15 +10,22 @@ import Platform from '../../platform'
 import CardParser from '../../../interaction/card_parser/card_parser'
 import SETTINGS_KEYS from '../../../utils/constants'
 
-let url
 let network = new Reguest()
+
+const TMDB_GENRE_ANIMATION = 16
+const ANIME_LANGUAGES = ['ja', 'zh']
+
+function isAnimeMovie(movie){
+    return ANIME_LANGUAGES.includes(movie.original_language)
+        && (movie.genres || []).some(g => g.id == TMDB_GENRE_ANIMATION)
+}
 
 function init(){
     Storage.set('parser_torrent_type', Storage.get('parser_torrent_type') || 'jackett')
 
     let source = {
         title: Lang.translate('title_parser'),
-        search: (params, oncomplite)=>{
+        search: (params, oncomplete)=>{
             get({
                 search: decodeURIComponent(params.query),
                 other: true,
@@ -43,9 +50,9 @@ function init(){
                     }
                 })
 
-                oncomplite(json.results.length ? [json] : [])
+                oncomplete(json.results.length ? [json] : [])
             },()=>{
-                oncomplite([])
+                oncomplete([])
             })
         },
         onRecall: (data, last_query)=>{
@@ -97,9 +104,73 @@ function init(){
     addSource()
 }
 
-function get(params = {}, oncomplite, onerror){
-    function complite(data){
-        oncomplite(data)
+function parserLinks(type){
+    if(type == 'jackett'){
+        return [
+            {url: Storage.field('jackett_url').replace('jacred.xyz','jac.red'), key: Storage.field('jackett_key'), rank: 0},
+            {url: Storage.field('jackett_url_two').replace('jacred.xyz','jac.red'), key: Storage.field('jackett_key_two'), rank: 1}
+        ]
+    }
+    else if(type == 'prowlarr'){
+        return [
+            {url: Storage.field('prowlarr_url'), key: Storage.field('prowlarr_key'), rank: 0},
+            {url: Storage.field('prowlarr_url_two'), key: Storage.field('prowlarr_key_two'), rank: 1}
+        ]
+    }
+    else return []
+}
+
+function selectParserLinks(type){
+    let use   = Storage.field('parser_use_link') || 'one'
+    let links = parserLinks(type)
+
+    if(use == 'one') return links[0] && links[0].url ? [links[0]] : []
+    if(use == 'two') return links[1] && links[1].url ? [links[1]] : []
+
+    return links.filter(l=>l && l.url)
+}
+
+function resultKey(item){
+    if(item.MagnetUri) return 'm:' + item.MagnetUri
+    if(item.downloadUrl) return 'm:' + item.downloadUrl
+
+    let size    = item.Size || item.size || ''
+    let tracker = item.Tracker || ''
+    let hash    = item.hash || Utils.hash((item.Title || '') + size + tracker)
+
+    return 'h:' + hash + '|' + size + '|' + tracker
+}
+
+function mergeResults(items){
+    let map = new Map()
+
+    items.forEach(item=>{
+        let key  = resultKey(item)
+        let prev = map.get(key)
+
+        if(!prev) map.set(key, item)
+        else{
+            let prev_rank = typeof prev.source_rank == 'number' ? prev.source_rank : 0
+            let next_rank = typeof item.source_rank == 'number' ? item.source_rank : 0
+
+            if(next_rank < prev_rank) {
+                map.set(key, item)
+            }
+            else if(next_rank == prev_rank){
+                let prev_time = prev.checked_at || 0
+                let next_time = item.checked_at || 0
+
+                if(next_time > prev_time) map.set(key, item)
+            }
+        }
+    })
+
+    return Array.from(map.values())
+}
+
+function get(params = {}, oncomplete, onerror){
+    function complete(data){
+        oncomplete(data)
     }
 
     function error(e){
@@ -107,14 +178,49 @@ function get(params = {}, oncomplite, onerror){
     }
 
     if(Storage.field('parser_torrent_type') == 'jackett'){
-        if(Storage.field('jackett_url')){
-            url = Utils.checkEmptyUrl(Storage.field('jackett_url'))
+        let links = selectParserLinks('jackett')
 
-            let ignore = false//params.from_search && !url.match(/\d+\.\d+\.\d+/g)
+        if(links.length){
+            let calls = links.map(link=>{
+                return (done, fail)=>{
+                    let base = Utils.checkEmptyUrl(link.url)
 
-            if(ignore) error('')
+                    let ignore = false//params.from_search && !base.match(/\d+\.\d+\.\d+/g)
+
+                    if(ignore) fail('')
+                    else jackett(params, base, link.key, link.rank, done, fail)
+                }
+            })
+
+            if(calls.length == 1) calls[0](complete, error)
             else{
-                jackett(params, complite, error)
+                let results = []
+                let pending = calls.length
+                let success = false
+                let first_error
+
+                calls.forEach((call, index)=>{
+                    call((json)=>{
+                        results[index] = json
+                        success = true
+
+                        if(--pending == 0){
+                            let merged = mergeResults([].concat(...results.map(r=>r && r.Results ? r.Results : [])))
+                            complete({Results: merged})
+                        }
+                    },(e)=>{
+                        results[index] = null
+                        first_error = first_error || e
+
+                        if(--pending == 0){
+                            if(success){
+                                let merged = mergeResults([].concat(...results.map(r=>r && r.Results ? r.Results : [])))
+                                complete({Results: merged})
+                            }
+                            else error(first_error || '')
+                        }
+                    })
+                })
             }
         }
         else{
@@ -122,17 +228,56 @@ function get(params = {}, oncomplite, onerror){
         }
     } 
     else if(Storage.field('parser_torrent_type') == 'prowlarr'){
-        if(Storage.field('prowlarr_url')){
-            url = Utils.checkEmptyUrl(Storage.field('prowlarr_url'))
-            prowlarr(params, complite, error)
-        } else {
+        let links = selectParserLinks('prowlarr')
+
+        if(links.length){
+            let calls = links.map(link=>{
+                return (done, fail)=>{
+                    let base = Utils.checkEmptyUrl(link.url)
+                    prowlarr(params, base, link.key, link.rank, done, fail)
+                }
+            })
+
+            if(calls.length == 1) calls[0](complete, error)
+            else{
+                let results = []
+                let pending = calls.length
+                let success = false
+                let first_error
+
+                calls.forEach((call, index)=>{
+                    call((json)=>{
+                        results[index] = json
+                        success = true
+
+                        if(--pending == 0){
+                            let merged = mergeResults([].concat(...results.map(r=>r && r.Results ? r.Results : [])))
+                            complete({Results: merged})
+                        }
+                    },(e)=>{
+                        results[index] = null
+                        first_error = first_error || e
+
+                        if(--pending == 0){
+                            if(success){
+                                let merged = mergeResults([].concat(...results.map(r=>r && r.Results ? r.Results : [])))
+                                complete({Results: merged})
+                            }
+                            else error(first_error || '')
+                        }
+                    })
+                })
+            }
+        } 
+        else {
             error(Lang.translate('torrent_parser_set_link') + ': Prowlarr')
         }
     } 
     else if(Storage.field('parser_torrent_type') == 'torrserver'){
-        if(Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL)){
-            url = Utils.checkHttp(Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL), true)
-            torrserver(params, complite, error)
+        let torr_link = Storage.field(Storage.field('torrserver_use_link') == 'two' ? 'torrserver_url_two' : SETTINGS_KEYS.TORRSERVER_URL)
+
+        if(torr_link){
+            torrserver(params, Utils.checkHttp(torr_link, true), complete, error)
         } else {
             error(Lang.translate('torrent_parser_set_link') + ': TorrServer')
         }
@@ -145,10 +290,10 @@ function viewed(hash){
     return view.indexOf(hash) > -1
 }
 
-function jackett(params = {}, oncomplite, onerror){
+function jackett(params = {}, base_url, api_key, source_rank, oncomplete, onerror){
     network.timeout(1000 * Storage.field('parse_timeout'))
 
-    let u = url + '/api/v2.0/indexers/'+(Storage.field('jackett_interview') == 'healthy' ? 'status:healthy' : 'all')+'/results?apikey='+Storage.field('jackett_key')+'&Query='+encodeURIComponent(params.search)
+    let u = base_url + '/api/v2.0/indexers/'+(Storage.field('jackett_interview') == 'healthy' ? 'status:healthy' : 'all')+'/results?apikey='+(api_key || '')+'&Query='+encodeURIComponent(params.search)
 
     if(!params.from_search){
         let genres = params.movie.genres.map((a)=>{
@@ -163,52 +308,55 @@ function jackett(params = {}, oncomplite, onerror){
         u = Utils.addUrlComponent(u,'year='+encodeURIComponent(((params.movie.first_air_date || params.movie.release_date || '0000') + '').slice(0,4)))
         u = Utils.addUrlComponent(u,'is_serial='+(params.movie.original_name ? '2' : params.other ? '0' : '1'))
         u = Utils.addUrlComponent(u,'genres='+encodeURIComponent(genres.join(',')))
-        u = Utils.addUrlComponent(u, 'Category[]=' + (params.movie.number_of_seasons > 0 ? 5000 : 2000) + (params.movie.original_language == 'ja' ? ',5070' : ''))
+        if(!params.global) u = Utils.addUrlComponent(u, 'Category[]=' + (params.movie.number_of_seasons > 0 ? 5000 : 2000) + (isAnimeMovie(params.movie) ? ',5070' : ''))
     }
 
     network.native(u,(json)=>{
         if(json.Results){
+            let checked_at = Date.now()
             json.Results.forEach(element => {
                 element.PublisTime  = Utils.strToTime(element.PublishDate)
                 element.hash        = Utils.hash(element.Title)
                 element.viewed      = viewed(element.hash)
                 element.size        = Utils.bytesToSize(element.Size)
+                element.checked_at  = checked_at
+                element.source_rank = source_rank
             })
 
-            oncomplite(json)
+            oncomplete(json)
         }
-        else onerror(Lang.translate('torrent_parser_no_responce') + ' (' + url + ')')
+        else onerror(Lang.translate('torrent_parser_no_responce') + ' (' + base_url + ')')
     },(a,c)=>{
-        onerror(Lang.translate('torrent_parser_no_responce') + ' (' + url + ')')
+        onerror(Lang.translate('torrent_parser_no_responce') + ' (' + base_url + ')')
     })
 }
 
 // доки https://wiki.servarr.com/en/prowlarr/search#search-feed
-function prowlarr(params = {}, oncomplite, onerror){
+function prowlarr(params = {}, base_url, api_key, source_rank, oncomplete, onerror){
     
     let q = []
 
-    q.push({name: 'apikey', value: Storage.field('prowlarr_key')})
+    q.push({name: 'apikey', value: api_key || ''})
     q.push({name: 'query', value: params.search})
 
     if(!params.from_search){
         const isSerial = !!(params.movie.original_name);
 
-        if (params.movie.number_of_seasons > 0) {
-            q.push({name: 'categories', value: '5000'})
-        }
-        if (params.movie.original_language == 'ja') {
-            q.push({name: 'categories', value: '5070'})
+        if(!params.global){
+            const baseCategory = params.movie.number_of_seasons > 0 ? '5000' : '2000'
+            q.push({name: 'categories', value: baseCategory})
+            if(isAnimeMovie(params.movie)) q.push({name: 'categories', value: '5070'})
         }
         q.push({name: 'type', value: isSerial ? 'tvsearch' : 'search'})
     }
 
-    let u = Utils.buildUrl(url, '/api/v1/search', q)
+    let u = Utils.buildUrl(base_url, '/api/v1/search', q)
 
     network.timeout(1000 * Storage.field('parse_timeout'));
     network.native(u,(json)=> {
         if(Array.isArray(json)) {
-            oncomplite({
+            let checked_at = Date.now()
+            oncomplete({
                 Results: json
                     .filter((e) => e.protocol === 'torrent')
                     .map((e) => {
@@ -225,6 +373,8 @@ function prowlarr(params = {}, oncomplite, onerror){
                             Peers: parseInt(e.leechers),
                             MagnetUri: e.downloadUrl,
                             viewed: viewed(hash),
+                            checked_at,
+                            source_rank,
                             hash
                         }
                     })
@@ -234,41 +384,110 @@ function prowlarr(params = {}, oncomplite, onerror){
         }
     },
         ()=>{
-        onerror(Lang.translate('torrent_parser_no_responce') + ' (' + url + ')')
+        onerror(Lang.translate('torrent_parser_no_responce') + ' (' + base_url + ')')
     })
 }
 
-function torrserver(params = {}, oncomplite, onerror){
+// TorrServer exposes two search backends:
+//   /search/?query=...         — built-in rutor scraper (no setup).
+//   /torznab/search/?query=... — Torznab indexer(s) configured inside TorrServer
+//                                (EnableTorznabSearch + TorznabUrls). Same JSON
+//                                shape (models.TorrentDetails) as /search/.
+// `torrserver_search_type`: 'rutor' | 'torznab' | 'both' (default 'both').
+function normalizeTorrServerSize(size){
+    if(!size) return ''
+
+    return String(size)
+        .replace(/\s*(?:TCiB|TiB)\b/gi, ' TB')
+        .replace(/\s*(?:GCiB|GiB)\b/gi, ' GB')
+        .replace(/\s*(?:MCiB|MiB)\b/gi, ' MB')
+        .replace(/\s*(?:KCiB|KiB)\b/gi, ' KB')
+}
+
+function torrserver(params = {}, base_url, oncomplete, onerror){
     network.timeout(1000 * Storage.field('parse_timeout'));
 
-    let u = Utils.buildUrl(url, '/search/', [
-        {name: 'query', value: params.search}
-    ])
-    
-    network.native(u,(json)=>{
-        if(Array.isArray(json)){
-            oncomplite({
-                Results:json.map((e) => {
-                    const hash = Utils.hash(e.Title);
-                    return {
-                        Title: e.Title,
-                        Tracker: e.Tracker,
-                        size: e.Size,
-                        PublishDate: Utils.strToTime(e.CreateDate),
-                        Seeders: parseInt(e.Seed),
-                        Peers: parseInt(e.Peer),
-                        MagnetUri: e.Magnet,
-                        viewed: viewed(hash),
-                        CategoryDesc: e.Categories,
-                        bitrate: '-',
-                        hash
-                    }
-                })
-            })
+    let mode = Storage.field('torrserver_search_type') || 'both'
+
+    function mapResult(e, source_rank){
+        const hash = Utils.hash(e.Title);
+		const timeValue = Utils.strToTime(e.CreateDate);
+
+        // Some torznab indexers expose only a .torrent download URL via `Link`
+        // and no magnet. If the link itself is a magnet URI, fall back to it.
+        let magnet = e.Magnet || (/^magnet:/i.test(e.Link || '') ? e.Link : '')
+
+        return {
+            Title: e.Title,
+            Tracker: e.Tracker,
+            size: normalizeTorrServerSize(e.Size),
+            Size: Utils.sizeToBytes(normalizeTorrServerSize(e.Size)),
+            PublishDate: Utils.strToTime(e.CreateDate),
+			PublisTime: timeValue,
+            Seeders: parseInt(e.Seed),
+            Peers: parseInt(e.Peer),
+            MagnetUri: magnet,
+            Link: e.Link,
+            viewed: viewed(hash),
+            CategoryDesc: e.Categories,
+            checked_at: Date.now(),
+            source_rank,
+            hash
         }
-        else onerror(Lang.translate('torrent_parser_request_error') + ' (' + JSON.stringify(json) + ')')
-    },(a,c)=>{
-        onerror(Lang.translate('torrent_parser_no_responce') + ' (' + url + ')')
+    }
+
+    function callSearch(path, done, fail){
+        let u = Utils.buildUrl(base_url, path, [{name: 'query', value: params.search}])
+
+        network.native(u,(json)=>{
+            if(Array.isArray(json)) done(json)
+            else fail(Lang.translate('torrent_parser_request_error') + ' (' + path + ')')
+        },()=>{
+            fail(Lang.translate('torrent_parser_no_responce') + ' (' + base_url + path + ')')
+        })
+    }
+
+    let calls = []
+    if(mode == 'rutor' || mode == 'both')   calls.push({path: '/search/',         rank: 0})
+    if(mode == 'torznab' || mode == 'both') calls.push({path: '/torznab/search/', rank: 1})
+
+    function runCall(spec, ondone, onfail){
+        callSearch(spec.path, (json)=>{
+            ondone(json.map((e)=>mapResult(e, spec.rank)))
+        }, onfail)
+    }
+
+    if(calls.length == 1){
+        runCall(calls[0], (items)=>oncomplete({Results: items}), onerror)
+        return
+    }
+
+    let results = []
+    let pending = calls.length
+    let success = false
+    let first_error
+
+    calls.forEach((spec, index)=>{
+        runCall(spec, (items)=>{
+            results[index] = items
+            success = true
+
+            if(--pending == 0){
+                let merged = mergeResults([].concat(...results.filter(Boolean)))
+                oncomplete({Results: merged})
+            }
+        },(err)=>{
+            results[index] = null
+            first_error = first_error || err
+
+            if(--pending == 0){
+                if(success){
+                    let merged = mergeResults([].concat(...results.filter(Boolean)))
+                    oncomplete({Results: merged})
+                }
+                else onerror(first_error || '')
+            }
+        })
     })
 }
 

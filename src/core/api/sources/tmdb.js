@@ -13,9 +13,14 @@ import Template from '../../../interaction/template'
 import LineModule from '../../../interaction/items/line/module/module'
 import Router from '../../router'
 import Permit from '../../account/permit'
+import VPN from '../../../core/vpn'
+import Keys from '../../tmdb/keys'
 
 
 let network   = new Reguest()
+let network_released = new Reguest() // отдельный, чтобы clear() не обрывал проверки релизов
+let released_dates   = {} // id фильма → {date: дата первого домашнего релиза или '', time}
+let released_waiting = {} // id фильма → колбэки, которые ждут ответ
 let menu_list = []
 let day       = 60 * 24
 let source    = 'tmdb'
@@ -97,17 +102,145 @@ let keywords = {
     ]
 }
 
+/**
+ * Дата в формате TMDB
+ * @param {number} time
+ * @return {string} YYYY-MM-DD
+ */
+function dateString(time){
+    let d = new Date(time)
+
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2)
+}
+
+/**
+ * Запрос для «Сейчас смотрят». С настройкой «Показывать только релизы» — только фильмы, которые уже вышли
+ * в цифре, на дисках или на ТВ за последние 90 дней, без тех, что идут только в кинотеатрах.
+ * @param {string} fallback - запрос, если настройка выключена
+ * @return {string}
+ */
+function nowPlaying(fallback){
+    if(!Storage.field('tmdb_only_released')) return fallback
+
+    let now = Date.now()
+
+    return 'discover/movie?with_release_type=4|5|6&release_date.lte=' + dateString(now) + '&release_date.gte=' + dateString(now - 1000 * 60 * 60 * 24 * 90) + '&sort_by=popularity.desc'
+}
+
+/**
+ * Дата первого домашнего релиза фильма (цифра, диски, ТВ)
+ * @param {number} id
+ * @param {function} done - дата, '' если домашнего релиза нет, null при ошибке
+ */
+function releaseDate(id, done){
+    let cached = released_dates[id]
+
+    // «Нет релиза» перепроверяем раз в сутки, найденную дату — нет
+    if(cached && (cached.date || cached.time > Date.now() - 1000 * 60 * 60 * 24)) return done(cached.date)
+
+    if(released_waiting[id]) return released_waiting[id].push(done)
+
+    released_waiting[id] = [done]
+
+    let finish = (date)=>{
+        let calls = released_waiting[id]
+
+        delete released_waiting[id]
+
+        if(date !== null) released_dates[id] = {date: date, time: Date.now()}
+
+        calls.forEach(call=>call(date))
+    }
+
+    network_released.timeout(1000 * 10)
+    network_released.silent(TMDB.api('movie/' + id + '/release_dates?api_key=' + TMDB.key()), (json)=>{
+        let dates = []
+
+        if(json.results && Arrays.isArray(json.results)){
+            json.results.forEach(country=>{
+                (country.release_dates || []).forEach(release=>{
+                    if(release.type >= 4 && release.release_date) dates.push(release.release_date.slice(0, 10))
+                })
+            })
+        }
+
+        dates.sort()
+
+        finish(dates[0] || '')
+    }, ()=>{
+        finish(null)
+    }, false, {
+        cache: {life: day}
+    })
+}
+
+/**
+ * Убрать из списка то, что ещё нельзя посмотреть дома: сериалы до премьеры, фильмы до премьеры
+ * и фильмы, которые идут только в кинотеатрах. Поиск, актёров и «Смотрите в кинозалах» не трогаем.
+ * @param {string} method - метод запроса
+ * @param {object} json - ответ TMDB, results фильтруется на месте
+ * @param {function} call - вызывается, когда фильтр готов
+ */
+function releasedFilter(method, json, call){
+    if(!Storage.field('tmdb_only_released')) return call()
+
+    if(!(json.results && Arrays.isArray(json.results)) || /^(search|person)\/|^movie\/upcoming|\/videos/.test(method)) return call()
+
+    let now    = Date.now()
+    let today  = dateString(now)
+    let border = dateString(now - 1000 * 60 * 60 * 24 * 180) // старше — считаем вышедшим, у старых фильмов часто нет домашних дат
+    let home   = method.indexOf('with_release_type=4') >= 0  // запрос уже отобрал вышедшие дома
+    let check  = []
+
+    json.results = json.results.filter(item=>{
+        let type = item.media_type || (item.hasOwnProperty('first_air_date') ? 'tv' : item.hasOwnProperty('release_date') ? 'movie' : '')
+
+        if(type == 'tv') return Boolean(item.first_air_date && item.first_air_date <= today)
+
+        if(type == 'movie'){
+            if(!item.release_date || item.release_date > today) return false
+
+            if(!home && item.release_date > border) check.push(item)
+        }
+
+        return true
+    })
+
+    if(!check.length) return call()
+
+    let status = new Status(check.length)
+
+    status.onComplite = (result)=>{
+        // При ошибке сети фильм показываем
+        json.results = json.results.filter(item=>{
+            let date = result[item.id]
+
+            return date === undefined || date === null || Boolean(date && date <= today)
+        })
+
+        call()
+    }
+
+    check.forEach(item=>{
+        releaseDate(item.id, (date)=>{
+            status.append(item.id, date)
+        })
+    })
+}
+
 function url(u, params = {}){
     let ln = [Storage.field('tmdb_lang')]
+
+    let genre = params.genres
+        
+    if(Permit.child_small) genre = genre ? genre + (genre == '16' ? '' : ',16') : '16'
 
     if(params.langs) ln = typeof params.langs == 'string' ? [params.langs] : ln.concat(params.langs.filter(n=>n !== ln[0]))
 
     u = add(u, 'api_key='+TMDB.key())
     u = add(u, 'language='+ln.join(','))
 
-    if(Permit.token && Permit.account.profile && Permit.account.profile.child) u = add(u, 'certification_country=RU&certification.lte=18')
-
-    if(params.genres && u.indexOf('with_genres') == -1)  u = add(u, 'with_genres='+params.genres)
+    if(genre && u.indexOf('with_genres') == -1)  u = add(u, 'with_genres='+genre)
     if(params.page)    u = add(u, 'page='+params.page)
     if(params.query)   u = add(u, 'query='+params.query)
     if(params.keywords)u = add(u, 'with_keywords='+params.keywords)
@@ -136,7 +269,7 @@ function add(u, params){
     return u + (/\?/.test(u) ? '&' : '?') + params;
 }
 
-function get(method, params = {}, oncomplite, onerror, cache = false){
+function get(method, params = {}, oncomplete, onerror, cache = false){
     let u = url(method, params)
     let s = method.match(/tv\/(\d+)\/season\/(\d+)/)
     
@@ -162,10 +295,25 @@ function get(method, params = {}, oncomplite, onerror, cache = false){
             } 
         }
 
-        oncomplite(Utils.addSource(json, source))
+        // Фильтруем результаты по ключевым словам, чтобы не показывать фильмы с неуместными словами в названии
+        if(json.results && Arrays.isArray(json.results)){
+            json.results = json.results.filter(item => {
+                let title = (item.title || item.name || '').toLowerCase()
+
+                return !Keys.filter.find(word => {
+                    let reg = new RegExp(word, 'i')
+                    
+                    return reg.test(title)
+                })
+            })
+        }
+
+        releasedFilter(method, json, ()=>{
+            oncomplete(Utils.addSource(json, source))
+        })
     }, ()=>{
         // Если сезон не найден, то пробуем найти правильный сезон из 1го сезона
-        if(s) seasonFix(parseInt(s[2]), method, params = {}, oncomplite, onerror, cache)
+        if(s) seasonFix(parseInt(s[2]), method, params = {}, oncomplete, onerror, cache)
         else if(onerror) onerror()
     }, false, {
         cache: cache
@@ -182,7 +330,7 @@ function img(src, size){
     return src ? TMDB.image(path + src) : '';
 }
 
-function seasonFix(season_need, method, params = {}, oncomplite, onerror, cache){
+function seasonFix(season_need, method, params = {}, oncomplete, onerror, cache){
     method = method.replace(/\/season\/(\d+)/,'/season/1')
 
     network.timeout(1000 * 10)
@@ -203,7 +351,7 @@ function seasonFix(season_need, method, params = {}, oncomplite, onerror, cache)
             new_json.season_number = season_need
             new_json.name          = Lang.translate('torrent_serial_season') + ' ' + season_need
 
-            oncomplite(Utils.addSource(new_json, source))
+            oncomplete(Utils.addSource(new_json, source))
         }
         else if(onerror) onerror()
     }, onerror, false, {
@@ -212,29 +360,29 @@ function seasonFix(season_need, method, params = {}, oncomplite, onerror, cache)
 }
 
 function find(find, params = {}){
-    let finded
+    let found
 
-    let filtred = (items)=>{
+    let filtered = (items)=>{
         for(let i = 0; i < items.length; i++){
             let item = items[i]
 
             if(params.original_title == item.original_title || params.title == item.title){
-                finded = item; break;
+                found = item; break;
             }
         }
     }
 
-    if(find.movie && find.movie.results.length)      filtred(find.movie.results)
-    if(find.tv && find.tv.results.length && !finded) filtred(find.tv.results)
+    if(find.movie && find.movie.results.length)      filtered(find.movie.results)
+    if(find.tv && find.tv.results.length && !found) filtered(find.tv.results)
 
-    return finded
+    return found
 }
 
-function main(params = {}, oncomplite, onerror){
+function main(params = {}, oncomplete, onerror){
     let parts_limit = 6
     let parts_data  = [
         (call)=>{
-            get('movie/now_playing',params,(json)=>{
+            get(nowPlaying('movie/now_playing'),params,(json)=>{
                 json.title = Lang.translate('title_now_watch')
 
                 call(json)
@@ -341,12 +489,12 @@ function main(params = {}, oncomplite, onerror){
         Api.partNext(parts_data, parts_limit, partLoaded, partEmpty)
     }
 
-    loadPart(oncomplite, onerror)
+    loadPart(oncomplete, onerror)
 
     return loadPart
 }
 
-function category(params = {}, oncomplite, onerror){
+function category(params = {}, oncomplete, onerror){
     let fullcat  = !(params.genres || params.keywords)
     let years    = [2000, 2010, 2015]
     
@@ -354,7 +502,7 @@ function category(params = {}, oncomplite, onerror){
     let parts_data  = [
         (call)=>{
             if(params.url == 'movie'){
-                get('discover/' + params.url + '?with_release_type=1',params,(json)=>{
+                get(nowPlaying('discover/' + params.url + '?with_release_type=1'),params,(json)=>{
                     json.title = Lang.translate('title_now_watch')
 
                     call(json)
@@ -512,23 +660,36 @@ function category(params = {}, oncomplite, onerror){
         Api.partNext(parts_data, parts_limit, partLoaded, partEmpty)
     }
 
-    loadPart(oncomplite, onerror)
+    loadPart(oncomplete, onerror)
 
     return loadPart
 }
 
-function full(params = {}, oncomplite, onerror){
-    let status = new Status(8)
-        status.onComplite = oncomplite
+function full(params = {}, oncomplete, onerror){
+    let status = new Status(9)
+        status.onComplite = oncomplete
+    let image_language = (Storage.field('tmdb_lang') || 'en').split(/[-_]/)[0]
+    let image_languages = [image_language, 'en', 'null'].filter((language, index, list)=>list.indexOf(language) == index).join(',')
 
     if(Utils.dcma(params.method, params.id)) return onerror()
 
-    get(params.method+'/'+params.id+'?append_to_response=content_ratings,release_dates,external_ids,keywords,alternative_titles',params,(json)=>{
+    get(params.method+'/'+params.id+'?append_to_response=content_ratings,release_dates,external_ids,keywords,alternative_titles,images&include_image_language='+image_languages,params,(json)=>{
         json.source = 'tmdb'
 
         if(json.external_ids){
             json.imdb_id = json.external_ids.imdb_id
         }
+		
+        if (!json.overview?.trim() && Storage.field('tmdb_lang') !== 'en') {
+            get(params.method + '/' + params.id, { langs: 'en' }, (enjson) => {
+                if (enjson.overview?.trim()) json.overview = enjson.overview
+
+                status.need--
+
+                status.check()
+            }, status.error.bind(status), { life: day * 7 })
+        }
+        else status.need--
         
         if(params.method == 'tv'){
             let season = Utils.countSeasons(json)
@@ -555,36 +716,54 @@ function full(params = {}, oncomplite, onerror){
         status.error()
     }, {life: day * 7})
 
-    get(params.method+'/'+params.id+'/credits',params,(json)=>{
-        status.append('persons', json)
-    },status.error.bind(status), {life: day * 7})
+    if(!Permit.child_small){
+        get(params.method+'/'+params.id+'/credits',params,(json)=>{
+            status.append('persons', json)
+        },status.error.bind(status), {life: day * 7})
 
-    get(params.method+'/'+params.id+'/recommendations',params,(json)=>{
-        status.append('recomend', json)
-    },status.error.bind(status), {life: day * 7})
+        get(params.method+'/'+params.id+'/recommendations',params,(json)=>{
+            status.append('recomend', json)
+        },status.error.bind(status), {life: day * 7})
 
-    get(params.method+'/'+params.id+'/similar',params,(json)=>{
-        status.append('simular', json)
-    },status.error.bind(status), {life: day * 7})
+        get(params.method+'/'+params.id+'/similar',params,(json)=>{
+            status.append('simular', json)
+        },status.error.bind(status), {life: day * 7})
 
-    videos(params, (json)=>{
-        status.append('videos', json)
-    },status.error.bind(status))
+        if(!Permit.child){
+            videos(params, (json)=>{
+                status.append('videos', json)
+            },status.error.bind(status))
+        }
+        else{
+            status.need--
+        }
+    }
+    else{
+        status.need -= 4
+    }
 
     Api.sources.cub.reactionsGet(params,(json)=>{
         status.append('reactions', json)
     })
 
-    if(Lang.selected(['ru','uk','be']) && window.lampa_settings.account_use){
+    if(Lang.selected(['ru','uk','be']) && window.lampa_settings.account_use && !Permit.child){
         status.need++
 
         Api.sources.cub.discussGet(params, (json)=>{
             status.append('discuss', json)
         },status.error.bind(status))
     }
+
+    if(params.method == 'movie'){
+        status.need++
+
+        Api.sources.cub.metadataGet(params, (json)=>{
+            status.append('metadata', json)
+        },status.error.bind(status))
+    }
 }
 
-function videos(params = {}, oncomplite, onerror){
+function videos(params = {}, oncomplete, onerror){
     let lg = Storage.field('tmdb_lang')
     let status = new Status(lg == 'en' ? 1 : 2)
         status.onComplite = (res)=>{
@@ -593,7 +772,7 @@ function videos(params = {}, oncomplite, onerror){
             if(res.one && res.one.results && res.one.results.length) data = data.concat(res.one.results)
             if(res.two && res.two.results && res.two.results.length) data = data.concat(res.two.results)
 
-            oncomplite({results: data})
+            oncomplete({results: data})
         }
 
     get(params.method+'/'+params.id+'/videos',{langs: Storage.field('tmdb_lang')},(json)=>{
@@ -607,17 +786,25 @@ function videos(params = {}, oncomplite, onerror){
     }
 }
 
-function list(params = {}, oncomplite, onerror){
+function list(params = {}, oncomplete, onerror, attempt = 0){
     let u = url(params.url, params)
 
     network.silent(u, (data)=>{
-        oncomplite(Utils.addSource(data, source))
+        releasedFilter(params.url, data, ()=>{
+            // Если фильтр убрал всю страницу, берём следующую, иначе пагинация остановится
+            if(data.results && !data.results.length && attempt < 5 && params.page && params.page < data.total_pages){
+                params.page++
+
+                list(params, oncomplete, onerror, attempt + 1)
+            }
+            else oncomplete(Utils.addSource(data, source))
+        })
     }, onerror, false, {
         cache: {life: day * 2}
     })
 }
 
-function search(params = {}, oncomplite){
+function search(params = {}, oncomplete){
     let status = new Status(3)
         status.onComplite = (data)=>{
             let items = []
@@ -626,7 +813,7 @@ function search(params = {}, oncomplite){
             if(data.tv && data.tv.results.length) items.push(data.tv)
             if(data.person && data.person.results.length) items.push(data.person)
 
-            oncomplite(items)
+            oncomplete(items)
         }
 
     get('search/movie',params,(json)=>{
@@ -696,7 +883,7 @@ function discovery(){
     }
 }
 
-function person(params = {}, oncomplite, onerror){
+function person(params = {}, oncomplete, onerror){
     const sortCredits = (credits) => {
         return Utils.addSource(credits
             .map((a) => {
@@ -764,7 +951,7 @@ function person(params = {}, oncomplite, onerror){
 
             if(status.data.credits) fulldata.credits = convert(status.data.credits, status.data.person || {})
 
-            oncomplite(fulldata)
+            oncomplete(fulldata)
         }
     
     if(!params.only_credits){
@@ -778,8 +965,8 @@ function person(params = {}, oncomplite, onerror){
     },status.error.bind(status), {life: day * 7})
 }
 
-function menu(params = {}, oncomplite){
-    if(menu_list.length) oncomplite(menu_list)
+function menu(params = {}, oncomplete){
+    if(menu_list.length) oncomplete(menu_list)
     else{
         let u = url('genre/movie/list',params)
 
@@ -791,18 +978,18 @@ function menu(params = {}, oncomplite){
                 })
             })
 
-            oncomplite(menu_list)
+            oncomplete(menu_list)
         })
     }
 }
 
-function menuCategory(params, oncomplite){
+function menuCategory(params, oncomplete){
     let menu = []
 
     if(params.action !== 'tv'){
         menu.push({
             title: Lang.translate('title_now_watch'),
-            url: params.action+'/now_playing'
+            url: nowPlaying(params.action+'/now_playing')
         })
     }
 
@@ -840,22 +1027,22 @@ function menuCategory(params, oncomplite){
         url: params.action+'/top_rated'
     })
 
-    oncomplite(menu)
+    oncomplete(menu)
 }
 
-function external_ids(params = {}, oncomplite, onerror){
-    get((params.type || 'tv') + '/'+params.id+'/external_ids', params, oncomplite, onerror, {life: day * 7})
+function external_ids(params = {}, oncomplete, onerror){
+    get((params.type || 'tv') + '/'+params.id+'/external_ids', params, oncomplete, onerror, {life: day * 7})
 }
 
-function external_imdb_id(params = {}, oncomplite){
+function external_imdb_id(params = {}, oncomplete){
     get(params.type+'/'+params.id+'/external_ids', params, (ids)=>{
-        oncomplite(ids.imdb_id || '')
+        oncomplete(ids.imdb_id || '')
     }, ()=>{
-        oncomplite('')
+        oncomplete('')
     }, {life: day * 7})
 }
 
-function company(params = {}, oncomplite, onerror) {
+function company(params = {}, oncomplete, onerror) {
     let status = new Status(3)
         status.onComplite = ()=>{
             function sortResultsByVoteAverage(results) {
@@ -884,7 +1071,7 @@ function company(params = {}, oncomplite, onerror) {
                     total_results: status.data.tv.total_results
                 })
 
-                oncomplite(fulldata)
+                oncomplete(fulldata)
             }
             else onerror()
         }
@@ -902,9 +1089,9 @@ function company(params = {}, oncomplite, onerror) {
     },status.error.bind(status), {life: day * 7})
 }
 
-function seasons(tv, from, oncomplite){
+function seasons(tv, from, oncomplete){
     let status = new Status(from.length)
-        status.onComplite = oncomplite
+        status.onComplite = oncomplete
 
     from.forEach(season => {
         get('tv/'+tv.id+'/season/'+season,{},(json)=>{
@@ -1209,16 +1396,16 @@ function parseCountries(movie){
 }
 
 function getGenresNameFromIds(card_type, ids){
-    let finded = []
+    let found = []
     let where  = genres[card_type]
     
     ids.forEach(a=>{
         let find = where.find(i=>i.id == a)
 
-        if(find) finded.push(Utils.capitalizeFirstLetter(Lang.translate(find.title)))
+        if(find) found.push(Utils.capitalizeFirstLetter(Lang.translate(find.title)))
     })
 
-    return finded
+    return found
 }
 
 function clear(){

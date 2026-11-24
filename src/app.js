@@ -1,3 +1,4 @@
+import 'regenerator-runtime/runtime'
 import Define from './utils/define/define'
 import PromisePolyfill from './utils/define/promise'
 import Manifest from './core/manifest'
@@ -42,6 +43,7 @@ import PlayerFooter from './interaction/player/footer'
 import PlayerInfo from './interaction/player/info'
 import PlayerIPTV from './interaction/player/iptv'
 import PlayerPlaylist from './interaction/player/playlist'
+import PlayerChat from './interaction/player/chat'
 import Timeline from './interaction/timeline'
 import Settings from './interaction/settings/settings'
 import SettingsApi from './interaction/settings/api'
@@ -96,7 +98,6 @@ import Bell from './interaction/bell'
 import HoverSwitcher from './core/switcher'
 import Ai from './core/api/sources/ai'
 import Mirrors from './core/mirrors'
-import HTTPS from './core/https'
 import Task from './core/loading'
 import App from './interaction/app'
 import LoadingProgress from './interaction/loading_progress'
@@ -122,8 +123,12 @@ import ServiceMetric from './services/metric'
 import ServiceDeveloper from './services/developer'
 import ServiceRemoteFavorites from './services/remote_favorites'
 import ServiceDMCA from './services/dmca'
+import ServiceLGBT from './services/lgbt'
+import ServiceKinopoisk from './services/kinopoisk'
 import ServiceFPS from './services/fps'
 import ServiceEvents from './services/events'
+import ServiceChildren from './services/children'
+import ServiceRemoteConfiguration from './services/remote_configuration'
 import ServiceDbValues from './services/db_values'
 
 window.screen_width = window.innerWidth
@@ -138,8 +143,8 @@ if (typeof window.lampa_settings == 'undefined') {
 }
 
 let torrents_use = true
-let agent = navigator.userAgent.toLowerCase()
-let conditions = [
+let agent        = navigator.userAgent.toLowerCase()
+let conditions   = [
     agent.indexOf("ipad") > -1 && window.innerWidth == 1920 && window.innerHeight == 1080,
     agent.indexOf("lampa_client_yasha") > -1,
     typeof AndroidJS !== 'undefined' && (AndroidJS.appVersion() + '').toLowerCase().indexOf('rustore') > -1 && !localStorage.getItem('parser_use')
@@ -180,6 +185,10 @@ Arrays.extend(window.lampa_settings, {
     disable_features: {
         // Блокировку карточек
         dmca: false,
+        // Блокировка ЛГБТ-контента
+        lgbt: false,
+        // Кнопка «Смотреть на Кинопоиске» для карточек из списка CUB
+        kinopoisk: false,
         // Реакции
         reactions: false,
         // Обсуждения
@@ -197,7 +206,11 @@ Arrays.extend(window.lampa_settings, {
         // Трейлеры
         trailers: false,
         // Установка прокси для запросов
-        install_proxy: false
+        install_proxy: false,
+        // Удаленная конфигурация
+        remote_configuration: false,
+        // Друзья
+        friends: false
     },
 
     // Подключить другие языки интерфейса, по умолчанию только русский и английский
@@ -211,6 +224,9 @@ Arrays.extend(window.lampa_settings, {
 
     // Добавить список блокировки карточек, пример: [{"id":3566556,"cat":"movie"},...]
     dcma: false,
+
+    // Добавить блокировку ЛГБТ контента, пример: [{"id":3566556,"type":"movie"},...]
+    lgbt: false,
 
     // Добавлять в адресную строку название текущего экрана
     push_state: true,
@@ -304,6 +320,7 @@ function initClass() {
         PlayerFooter,
         PlayerIPTV,
         PlayerPlaylist,
+        PlayerChat,
         Timeline,
         Modal,
         Api,
@@ -496,6 +513,9 @@ function startApp() {
     window.app_time_launch = Date.now()
     window.app_time_end = 0
 
+    // Удаляем app.js из localStorage, экономим место
+    window.localStorage.removeItem('app.js')
+
     // Стартуем
 
     LoadingProgress.status('Launching the application')
@@ -512,9 +532,6 @@ function startApp() {
 
     Timeline.init()
     LoadingProgress.status('Timeline init')
-
-    HTTPS.init()
-    LoadingProgress.status('HTTPS init')
 
     Mirrors.init()
     LoadingProgress.status('Mirrors init')
@@ -694,6 +711,9 @@ function startApp() {
     ServiceRemoteFavorites.init()
     LoadingProgress.status('ServiceRemoteFavorites init')
 
+    ServiceKinopoisk.init()
+    LoadingProgress.status('ServiceKinopoisk init')
+
     ServiceDMCA.init()
     LoadingProgress.status('ServiceDMCA init')
 
@@ -705,6 +725,15 @@ function startApp() {
 
     ServiceLibs.init()
     LoadingProgress.status('ServiceLibs init')
+
+    ServiceLGBT.init()
+    LoadingProgress.status('ServiceLGBT init')
+
+    ServiceChildren.init()
+    LoadingProgress.status('ServiceChildren init')
+
+    ServiceRemoteConfiguration.init()
+    LoadingProgress.status('ServiceRemoteConfiguration init')
 
     // Обновляем слои
 
@@ -874,7 +903,24 @@ function loadTask() {
         setTimeout(showApp, 5000)
     })
 
-    Task.secondary(() => {
+    // todo: потом удалить, это костыль для исправления старых адресов джакетта 
+    Task.secondary(()=>{
+        let tsl1 = window.localStorage.getItem('jackett_url') || ''
+        let tsl2 = window.localStorage.getItem('jackett_url_two') || ''
+
+        try{
+            if(tsl1.toLowerCase() == 'jacred.xyz'){
+                window.localStorage.setItem('jackett_url', 'jac.red')
+            }
+
+            if(tsl2.toLowerCase() == 'jacred.xyz'){
+                window.localStorage.setItem('jackett_url_two', 'jac.red')
+            }
+        }
+        catch(e){}
+    })
+
+    Task.secondary(()=>{
         LoadingProgress.status('Loading plugins')
 
         Plugins.load(showApp)

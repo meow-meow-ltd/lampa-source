@@ -22,7 +22,7 @@
         top: 0;
         left: 100%;
         transition: transform $speed;
-        background: #262829;
+        background: $bg_primary;
         width: 35%;
         display: flex;
         flex-direction: column;
@@ -118,7 +118,7 @@
         &__descr{
             opacity: 0.5;
             margin-top: 1.2em;
-            line-height: 1.2;
+            line-height: 1.4;
         }
 
         &__label{

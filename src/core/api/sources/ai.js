@@ -3,21 +3,21 @@ import Api from '../../account/api'
 
 
 function facts(card_id, card_type, callback, error){
-    Api.load('ai/generate/facts/' + card_id + '/' + card_type).then(callback).catch(error)
+    Api.load('ai/generate/facts/' + card_id + '/' + card_type, {timeout: 60000}).then(callback).catch(error)
 }
 
 function recommendations(card_id, card_type, callback, error){
-    Api.load('ai/generate/recommend/' + card_id + '/' + card_type).then(callback).catch(error)
+    Api.load('ai/generate/recommend/' + card_id + '/' + card_type, {timeout: 60000}).then(callback).catch(error)
 }
 
 function search(query, callback, error){
-    Api.load('ai/search/' + encodeURIComponent(query)).then(callback).catch(error)
+    Api.load('ai/search/' + encodeURIComponent(query), {timeout: 60000}).then(callback).catch(error)
 }
 
 function discovery(){
     let source = {
         title: Lang.translate('title_ai_assistant'),
-        search: (params, oncomplite)=>{
+        search: (params, oncomplete)=>{
             source.params.nofound = Lang.translate('search_nofound')
 
             search(decodeURIComponent(params.query),(json)=>{
@@ -26,11 +26,11 @@ function discovery(){
                     element.source = 'cub'
                 })
 
-                oncomplite(json.results.length ? [json] : [])
+                oncomplete(json.results.length ? [json] : [])
             },(e)=>{
                 if(e.decode_code == 600) source.params.nofound = Lang.translate('ai_search_limit')
 
-                oncomplite([])
+                oncomplete([])
             })
         },
         onCancel: ()=>{

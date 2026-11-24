@@ -209,6 +209,10 @@
                 background: rgb(118, 230, 122);
             }
 
+            &.status--bad{
+                background: rgb(248, 209, 131);
+            }
+
             &.status--error{
                 background: #ff6868;
             }
@@ -283,4 +287,14 @@ body.mouse--controll:not(.true--mobile){
     .head__backward{
         display: block;
     }
+}
+D
+// Экран «Просмотры»: фильтр Все / Фильмы / Сериалы
+.head__action.watch-history__filter{
+    width: auto;
+    padding: 0 1.2em;
+    border-radius: 2em;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
 }

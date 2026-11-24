@@ -25,6 +25,8 @@ let timeping = 5000
 let timeout
 let used_mirrors = -1
 let terminal_access = false
+let reconnect
+let timers_added = false
 
 
 function connect(){
@@ -43,26 +45,36 @@ function connect(){
 
     if(window.lampa_settings.socket_url) socket_url = window.lampa_settings.socket_url
     
-    clearInterval(ping)
+    clearTimeout(ping)
 
     clearTimeout(timeout)
 
-    timeout = setTimeout(()=>{
-        console.log('Socket','timeout close')
+    // переподключение, запланированное закрытием прежнего сокета, — уже не нужно
+    clearTimeout(reconnect)
 
-        if(socket) socket.close()
-    },10000)
+    let current
 
     try{
-        socket = new WebSocket(socket_url)
+        current = new WebSocket(socket_url)
     }
     catch(e){
         console.log('Socket','not work')
     }
 
-    if(!socket) return
+    if(!current) return
 
+    socket = current
+
+    timeout = setTimeout(()=>{
+        console.log('Socket','timeout close')
+
+        if(socket) socket.close()
+    },1000 * 60)
+
+    // события прежнего сокета (после restart) не трогают текущий: иначе он переподключится ещё раз и сообщения придут дважды
     socket.addEventListener('open', (event)=> {
+        if(current !== socket) return
+
         console.log('Socket','open on ' + socket_url)
 
         timeping = 5000
@@ -77,6 +89,8 @@ function connect(){
     })
 
     socket.addEventListener('close', (event)=> {
+        if(current !== socket) return
+
         console.log('Socket','close', event.code)
 
         clearTimeout(timeout)
@@ -87,7 +101,7 @@ function connect(){
 
         console.log('Socket','try connect to '+socket_url+' after', Math.round(timeping) / 1000, 'sec.')
 
-        setTimeout(connect,Math.round(timeping))
+        reconnect = setTimeout(connect,Math.round(timeping))
 
         timeping *= 2
 
@@ -96,13 +110,15 @@ function connect(){
 
     socket.addEventListener('error', (event)=> {
         console.log('Socket','error:','maybe there is no connection to the server')
-
-        socket.close()
     },false)
 
     socket.addEventListener('message', (event)=> {
+        if(current !== socket) return
+
         if(event.data == 'pong') {
             socket.alive = true
+
+            Markers.live('socket')
 
             return
         } 
@@ -119,7 +135,8 @@ function connect(){
                 Activity.push(result.data)
             }
             else if(result.method == 'timeline'){
-                result.data.received = true //чтоб снова не остправлять и не зациклить
+                //чтоб снова не остправлять и не зациклить
+                result.data.received = true 
 
                 let account = Account.Permit.account
 
@@ -187,6 +204,9 @@ function connect(){
             else if(result.method == 'token_status'){
                 console.log('Socket','token status', result.data)
             }
+            else if(result.method == 'buy_premium'){
+                Account.updateUser()
+            }
             else if(result.method == 'other' && result.data.submethod == 'play'){
                 Controller.toContent()
 
@@ -226,10 +246,15 @@ function connect(){
             }
         }
 
-        Markers.pass('socket')
+        Markers.pass('socket', 5)
 
         listener.send('message',result)
     })
+
+    // таймеры работают с текущим сокетом — достаточно добавить их один раз, а не при каждом переподключении
+    if(timers_added) return
+
+    timers_added = true
 
     Timer.add(1000,()=>{
         if(expects.length > 50) expects = expects.slice(-50)
@@ -241,30 +266,35 @@ function connect(){
 
             send(msg.method, msg)
         }
-    })
+    }, false, true)
 
     Timer.add(1000 * 30,()=>{
         if(socket && socket.readyState == 1){
+            clearTimeout(ping)
+
             socket.alive = false
-
-            setTimeout(()=>{
-                if(!socket.alive){
-                    console.log('Socket','ping timeout, maybe connection lost')
-                }
-            },2000)
-
             socket.send('ping')
+
+            ping = setTimeout(()=>{
+                if(!socket.alive && socket.readyState == 1){
+                    console.log('Socket','ping timeout, maybe connection lost')
+
+                    Markers.bad('socket')
+                }
+            },15000)
         }
-    })
+    }, false, true)
 }
 
 function send(method, data){
     let name_devise = Platform.get() ? Platform.get() : navigator.userAgent.toLowerCase().indexOf('mobile') > - 1 ? 'mobile' : navigator.userAgent.toLowerCase().indexOf('x11') > - 1 ? 'chrome' : 'other';
 
+    listener.send('send',{method, data})
+
     data.device_id = uid
     data.name      = Utils.capitalizeFirstLetter(name_devise) + ' - ' + Storage.field('device_name')
     data.method    = method
-    data.version   = 1
+    data.version   = 2
     data.account   = Storage.get('account','{}')
     data.premium   = Account.hasPremium()
     data.terminal  = Storage.get('terminal_access', '')
@@ -276,7 +306,11 @@ function send(method, data){
 }
 
 function restart(){
-    if(socket) socket.close()
+    let old = socket
+
+    socket = null
+
+    if(old) old.close()
 
     connect()
 }

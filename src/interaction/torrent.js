@@ -19,10 +19,12 @@ import Loading from './loading'
 import Request from '../utils/reguest'
 import subsrt from "../utils/subsrt/subsrt";
 import Keypad from '../core/keypad'
+import {createEta, preloadDetail} from './media_loading_data'
 
 let SERVER = {}
 
 let timers = {}
+let viewed_listener
 
 let callback
 let callback_back
@@ -87,6 +89,11 @@ function open(hash, movie){
     } 
     else if(Torserver.url()){
         loading()
+
+        // из «Мои торренты» соединение не проверяется (connect() пропускается), поэтому gstreamer проверяем здесь,
+        // иначе gst_work остаётся false и ссылка потока строится как /stream при включённом «Транскодировании»
+        Torserver.gstCheck()
+
         files()
     }
     else install()
@@ -156,9 +163,18 @@ function files(){
             if(json.file_stats){
                 clearInterval(timers.files)
 
-                show(json.file_stats)
-            }
-        })
+                if(Storage.field('torrserver_tracktimecode')){
+                    Torserver.viewed(SERVER.hash, (viewed)=>{
+					    show(json.file_stats, viewed || [])
+				    }, ()=>{
+					    show(json.file_stats, [])
+				    })
+			    }
+			    else{
+				    show(json.file_stats)
+			    }
+			}
+		})
 
         if(repeat >= 45){
             Modal.update(Template.get('error',{title: Lang.translate('title_error'),text: Lang.translate('torrent_parser_timeout')}))
@@ -182,7 +198,7 @@ function install(){
     })
 }
 
-function show(files){
+function show(files, viewed){
     files.sort((a, b)=>{
         let an = a.path.replace(/\d+/g, (m) => m.length > 3 ? m : ('000' + m).substr(-4))
         let bn = b.path.replace(/\d+/g, (m) => m.length > 3 ? m : ('000' + m).substr(-4))
@@ -217,14 +233,16 @@ function show(files){
             list(plays, {
                 movie: movie,
                 seasons: data,
-                files: files
+                files: files,
+				viewed: viewed || []
             })
         })
     }
     else{
         list(plays, {
             movie: movie,
-            files: files
+            files: files,
+			viewed: viewed || []
         })
     }
 }
@@ -256,48 +274,72 @@ function parseSubs(path, files){
 }
 
 function preload(data, run){
-    let need_preload = Torserver.ip() && data.url.indexOf(Torserver.ip()) > -1 && data.url.indexOf('&preload') > -1
+    let has_server = Torserver.ip() && data.url.indexOf(Torserver.ip()) > -1
+    let has_preload = data.url.indexOf('&preload') > -1
+    let need_preload = has_server && has_preload
 
     if(need_preload){
         let checkout
         let network = new Request()
         let first   = true
+        let stopped = false
+        let last_bytes  = 0
+        let last_change = Date.now()
+        let eta = createEta()
 
-        Loading.start(()=>{
-            clearInterval(checkout)
+        let stop = ()=>{
+            stopped = true
+
+            clearTimeout(checkout)
 
             network.clear()
 
             Loading.stop()
-        })
+        }
 
-        let update = ()=>{    
+        Loading.start(stop, '', {media: data})
+
+        let next = ()=>{
+            if(stopped) return
+
+            if(Date.now() - last_change > 30000){
+                stop()
+            }
+            else checkout = setTimeout(update, 1000)
+        }
+
+        let update = ()=>{
             network.timeout(2000)
-    
+
             network.silent(first ? data.url : data.url.replace('&preload', '&stat'), function (res) {
+                if(stopped) return
+
                 let pb = res.preloaded_bytes || 0,
                     ps = res.preload_size || 0,
                     sp = res.download_speed ? Utils.bytesToSize(res.download_speed * 8, true) : '0.0'
-                
+
                 let progress = Math.min(100,((pb * 100) / ps ))
 
                 if(progress >= 95 || isNaN(progress)){
-                    Loading.stop()
+                    stop()
 
-                    clearInterval(checkout)
-                    
                     run()
                 }
                 else{
-                    Loading.setText(Math.round(progress) + '%' + ' - ' + sp)
+                    if(pb > last_bytes){
+                        last_bytes  = pb
+                        last_change = Date.now()
+                    }
+
+                    Loading.setProgress(progress, preloadDetail(res, sp, eta.push(pb, ps, res.download_speed)))
+
+                    next()
                 }
-            })
+            }, next)
 
             first = false
         }
-    
-        checkout = setInterval(update,1000)
-    
+
         update()
     }
     else run()
@@ -306,6 +348,7 @@ function preload(data, run){
 function list(items, params){
     let html     = $('<div class="torrent-files"></div>')
     let playlist = []
+    let views    = {}
     let scroll_to_element
     let first_item
 
@@ -322,7 +365,30 @@ function list(items, params){
             path:  element.path,
             is_file: formats_individual.indexOf(exe) >= 0,
         })
-        let view = Timeline.view(info.hash)
+        // Привязываем к карточке, только если хеш из названия: хеш из пути файла от названия карточки не зависит.
+        // Серию 0 парсер ставит, когда номер не распознан — такую не привязываем
+        let view = Timeline.view(info.hash, info.by_title && (!info.serial || info.episode) ? Timeline.link(params.movie, info.season, info.episode) : null)
+		let serverView = (params.viewed || []).filter((v)=>{
+			return v.file_index == element.id
+		})[0]
+
+		if(params.movie && params.movie.runtime){
+			view.duration = params.movie.runtime * 60
+		}
+
+		if(Storage.field('torrserver_tracktimecode') && serverView && serverView.timecode > 0){
+			view.time = serverView.timecode
+
+			if(view.duration > 0){
+				view.percent = Math.min(
+				    100,
+				    Math.round(view.time / view.duration * 100)
+			    )
+			}
+
+			Timeline.update(view)
+		}
+
         let item
 
         Arrays.extend(element, {
@@ -330,6 +396,7 @@ function list(items, params){
             episode: info.episode,
             title: element.path_human,
             first_title:  params.movie.name || params.movie.title,
+            card: params.movie,
             size: Utils.bytesToSize(element.length),
             url: Torserver.stream(element.path, SERVER.hash, element.id),
             torrent_hash: SERVER.hash,
@@ -337,8 +404,14 @@ function list(items, params){
             timeline: view,
             air_date: '--',
             img: './img/img_broken.svg',
-            exe: exe
-        })
+            exe: exe,
+
+			viewed: (time)=>{
+				if(Storage.field('torrserver_tracktimecode')){
+				    Torserver.viewedSet(SERVER.hash, element.id, time)
+				}
+			}
+         })
 
         if(params.seasons){
             let episodes = params.seasons[info.season]
@@ -352,6 +425,23 @@ function list(items, params){
                 })[0]
 
                 if(episode){
+					if(episode.runtime){
+						view.duration = episode.runtime * 60
+					}
+
+					if(Storage.field('torrserver_tracktimecode') && serverView && serverView.timecode > 0){
+						view.time = serverView.timecode
+
+						if(view.duration > 0){
+							view.percent = Math.min(
+							    100,
+								Math.round(view.time / view.duration * 100)
+							)
+						}
+
+						Timeline.update(view)
+					}
+
                     element.title    = info.episode + ' / ' +episode.name
                     element.air_date = Utils.parseTime(episode.air_date).full
                     element.fname    = episode.name
@@ -397,36 +487,33 @@ function list(items, params){
 
         item[0].visibility = 'hidden'
 
+        views[element.id] = {view: view, duration: view.duration, server: serverView ? serverView.timecode || 0 : 0}
+
         if(view.percent > 0) scroll_to_element = item
 
         element.subtitles = parseSubs(element.path, params.files)
 
         element.title = (element.fname || element.title).replace(/<[^>]*>?/gm, '')
+        element.subtitle = element.episode ? Lang.translate('torrent_serial_episode') + ': ' + element.episode : ''
 
-        playlist.push(element)
-        
+        // копируем объект, чтобы не было ссылок на один и тот же объект в плейлисте
+        let playlist_element = {}
+
+        for(let a in element){
+            playlist_element[a] = element[a]
+        }
+
+        playlist.push(playlist_element)
+
+        element.playlist = playlist
+
         item.on('hover:enter',()=>{
             stopAutostart()
 
-            //если это андроид, но не андроид, то нефиг смотреть
-            if(navigator.userAgent.toLowerCase().indexOf('android') >= 0 && !Platform.is('android')) return Platform.install('apk')
+            // если это андроид, но не андроид, то нефиг смотреть
+            if(navigator.userAgent.toLowerCase().indexOf('android') >= 0 && !Platform.is('android') && !Torserver.gstWork()) return Platform.install('apk')
 
             if(params.movie.id) Favorite.add('history', params.movie, 100)
-
-            if ((Platform.is('android') || Platform.is('apple_tv')) && playlist.length > 1){
-                let trim_playlist = []
-
-                playlist.forEach((elem)=>{
-                    trim_playlist.push({
-                        title: elem.title,
-                        url: elem.url,
-                        timeline: elem.timeline,
-                        thumbnail: elem.thumbnail,
-                    })
-                })
-
-                element.playlist = trim_playlist
-            }
 
             preload(element, ()=>{
                 Player.play(element)
@@ -436,8 +523,6 @@ function list(items, params){
                 })
 
                 Player.playlist(playlist)
-
-                Player.stat(element.url)
 
                 if(callback){
                     callback()
@@ -505,7 +590,11 @@ function list(items, params){
                         element.timeline = view
                         
                         Timeline.update(view)
-                    }
+
+                        if(Storage.field('torrserver_tracktimecode')){
+						    Torserver.viewedSet(SERVER.hash, element.id, 0)
+                        }
+				    }
 
                     if(a.timefull){
                         view.percent  = 100
@@ -565,7 +654,42 @@ function list(items, params){
 
     Modal.update(html)
 
+    if(Storage.field('torrserver_tracktimecode')){
+        document.removeEventListener('visibilitychange', viewed_listener)
+
+        viewed_listener = ()=>{
+            if(!document.hidden) refreshViewed(views)
+        }
+
+        document.addEventListener('visibilitychange', viewed_listener)
+    }
+
     if(scroll_to_element) Controller.collectionFocus(scroll_to_element,Modal.scroll().render())
+}
+
+function refreshViewed(views){
+    if(!Storage.field('torrserver_tracktimecode') || !SERVER.hash) return
+
+    Torserver.viewed(SERVER.hash, (viewed)=>{
+        ;(viewed || []).forEach((sv)=>{
+            let item = views[sv.file_index]
+            let time = sv.timecode || 0
+
+            if(!item || time === item.server) return
+
+            item.server = time
+
+            let view = item.view
+
+            if(!view.duration) view.duration = item.duration
+
+            view.time = time
+
+            if(view.duration > 0) view.percent = Math.min(100, Math.round(view.time / view.duration * 100))
+
+            Timeline.update(view)
+        })
+    }, ()=>{})
 }
 
 function autostart(item){
@@ -619,6 +743,8 @@ function close(){
     Torserver.clear()
 
     clearInterval(timers.files)
+
+    document.removeEventListener('visibilitychange', viewed_listener)
 
     if(callback_back){
         callback_back()

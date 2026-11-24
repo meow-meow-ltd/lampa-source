@@ -1,62 +1,66 @@
 import Lang from '../../core/lang'
-import Account from '../../core/account/account'
 import VPN from '../../core/vpn'
 import Controller from '../../core/controller'
-import Personal from '../../core/personal'
-import Utils from '../../utils/utils'
-import Vast from './vast'
+import Vast2 from './preroll/v2'
+import Vast3 from './preroll/v3'
 import Platform from '../../core/platform'
-import Manifest from '../../core/manifest'
 import Background from '../background'
-import Manager from './vast_manager'
+import VastManager from './vast_manager'
+import IMA from './ima'
 import Metric from '../../services/metric'
-import Activity from '../activity/activity'
-import Torserver from '../torserver'
+import Account from '../../core/account/account'
+import Personal from '../../core/personal'
 
 let running     = 0
 let player_data = {}
-let vast_api    = false
-let waite_time  = 0
+let prerolls_played = []
+
+let Manager = new VastManager({
+    api: 'preroll',
+    cooling: 1000 * 60 * 5
+})
 
 function init(){
-    if(!(Platform.is('orsay') || Platform.is('netcast'))){
-        Utils.putScriptAsync([Manifest.github_lampa + '/vender/vast/vast.js'], false,false,()=>{
-            vast_api = true
-        })
-
-        Manager.init()
-    }
+    Manager.init()
 }
 
+/**
+ * Показать преролл
+ * @param {Object} preroll - данные для показа рекламы
+ * @param {Number} num - номер показа рекламы (для повторов)
+ * @param {Function} started - вызывается при запуске рекламы
+ * @param {Function} ended - вызывается при окончании рекламы
+ * @return {void}
+ */
 function video(preroll, num, started, ended){
-    console.log('Ad', 'launch')
+    console.log('Ad', 'preroll launch')
 
-    let item = new Vast(preroll)
+    let advert = preroll.vast_api == 3 ? new Vast3(preroll) : new Vast2(preroll)
+    let next   = (mark) => {
+        let any = getAnyPreroll()
 
-    item.listener.follow('launch', started)
+        mark && Manager.markCooling()
 
-    item.listener.follow('ended', ()=>{
-        waite_time = Date.now()
+        any ? video(any, num + 1, started, ended) : ended()
+    }
 
-        ended()
+    advert.listener.follow('launch', started)
+
+    advert.listener.follow('ended', ()=>{
+        num < 2 ? next() : ended()
     })
 
-    item.listener.follow('error', ()=>{
-        if(Date.now() - running < 15000 && num < 4){
-            let next_preroll = getAnyPreroll()
-
-            if(next_preroll) video(next_preroll, num + 1, started, ended)
-            else ended()
-        }
-        else ended()
-    })
-
-    $.ajax({
-        dataType: 'text',
-        url: Utils.protocol() + Manifest.cub_domain + '/api/ad/stat?platform=' + Platform.get() + '&type=launch&method=vast'
+    advert.listener.follow('error', ()=>{
+        Date.now() - running < 15000 && num < 4 ? next() : ended()
     })
 }
 
+/**
+ * Показать заставку (реклама)
+ * @param {Object} preroll - данные для показа рекламы
+ * @param {Function} call - вызывается при окончании рекламы
+ * @return {void}
+ */
 function launch(preroll, call){
     let enabled = Controller.enabled().name
 
@@ -111,7 +115,12 @@ function launch(preroll, call){
     Controller.toggle('ad_preroll')
 }
 
-function getVastPlugin(data, first_run = false){
+/**
+ * Получить данные для плагина
+ * @param {Object} data - данные плеера
+ * @return {Object|Boolean} данные для плагина или false, если не показывать
+ */
+function getVastPlugin(data){
     let show = true
 
     if(data.vast_region && typeof data.vast_region == 'string' && data.vast_region.split(',').indexOf(data.ad_region) == -1) show = false
@@ -127,61 +136,79 @@ function getVastPlugin(data, first_run = false){
     return false
 }
 
+/**
+ * Получить данные для показа рекламы (преролл или плагин)
+ * @param {Boolean} first_run - первый запуск (для сброса кулинга)
+ * @return {Object|Boolean} данные для показа рекламы или false, если не показывать
+ */
 function getAnyPreroll(first_run = false){
-    let manager = Manager.get(player_data, first_run)
-    let plugin  = getVastPlugin(player_data, first_run)
+    let manager = Manager.get(first_run)
+    let plugin  = getVastPlugin(player_data)
 
-    if(waite_time < Date.now() - 1000 * 60 * 5) return manager || plugin
+    let any = Manager.coolingReady() ? manager || plugin : false
 
-    return false
+    if(any){
+        if(prerolls_played.indexOf(any.url) == -1) prerolls_played.push(any.url)
+        else any = false
+    } 
+
+    return any
 }
 
+/**
+ * Показать рекламу (преролл или плагин)
+ * @param {Object} data - данные плеера
+ * @param {Function} call - вызывается при окончании рекламы
+ * @return {void}
+ */
 function show(data, call){
-    if(!vast_api){
-        if(!(Platform.is('orsay') || Platform.is('netcast'))){
-            Metric.counter('no_vast_api', 1)
+    player_data = data
 
-            console.log('Ad','error','no vast api')
-        }
-    }
+    prerolls_played = []
 
+    // Пометить регион для таргетинга рекламы
+    player_data.ad_region = VPN.code()
 
-    let is_torrent  = Boolean(data.torrent_hash && Torserver.ip() && data.url.indexOf(Torserver.ip()) > -1)
-    let is_youtube  = Boolean(data.youtube && Activity.active().component == 'full' && data.url.indexOf('youtube.com') > -1)
-    let is_continue = Boolean(data.continue_play && Lampa.PlayerPlaylist.get().length > 0 && Lampa.PlayerPlaylist.get().indexOf(data) > -1)
+    // Не показывать рекламу для iptv/torrent/youtube/continue
+    let type = IMA.getMediaType(data)
+    let whoi = Account.hasPremium() ? 'premium' : Personal.confirm() ? 'personal' : 'none'
 
-    if(!vast_api || data.iptv || is_torrent || is_youtube || is_continue){
-        console.log('Ad', 'skipped, no vast api or iptv/torrent/youtube/continue', vast_api, data.iptv, is_torrent, is_youtube, is_continue)
+    Metric.counter('ad_preroll_start', VPN.code(), whoi, type.any ? 'skip' : 'show')
+
+    if(type.any){
+        console.log('Ad', 'preroll skipped, no vast api or iptv/torrent/youtube/continue', type)
 
         return call()
     }
-    
-    if(running) return console.log('Ad', 'skipped, already running')
 
+    // Бывает что плеер по несколько раз запускается, 
+    // проверяем чтобы реклама не запускалась несколько раз подряд
+    if(running) return console.log('Ad', 'preroll skipped, already running')
+    
+    // Помечаем время запуска рекламы
     running = Date.now()
 
     let ended = ()=>{
         running = 0
 
-        console.log('Ad', 'call ended')
+        console.log('Ad', 'preroll ended')
 
         call()
     }
 
-    player_data = data
-    player_data.ad_region = VPN.code()
-
+    // Получаем данные для показа рекламы (преролл или плагин)
     let preroll = getAnyPreroll(true)
+    let canshow = IMA.canShow(data)
 
-    console.log('Ad', 'any preroll', preroll)
+    Metric.counter('ad_preroll_show', VPN.code(), preroll ? 'ready' : 'none', canshow ? 'ready' : 'none')
+    Metric.counter('ad_preroll_colling', VPN.code(), Manager.coolingReady() ? 'ready' : 'cooling')
 
-    let ignore  = window.lampa_settings.developer.ads ? false : Account.hasPremium() || Personal.confirm()
+    if(preroll && canshow){
+        // Загружаем SDK для выбранного преролла, чтобы он был готов к показу
+        IMA.loadSDK(preroll.vast_api).catch(()=>{
+            console.log('Ad', 'IMA SDK load error', preroll.vast_api)
+        })
 
-    if(ignore) console.log('Ad', 'skipped, premium or torrent/youtube/iptv/continue')
-
-    Metric.counter('ad_preroll', preroll ? 1 : 0, Account.hasPremium() ? 'premium' : Personal.confirm() ? 'personal' : 'none', VPN.code())
-
-    if(preroll && !ignore){
         launch(preroll, ended)
     }
     else ended()

@@ -4,7 +4,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0,0,0,0.3);
+    background-color: $bg_transparent;
     padding: $offset;
     z-index: 50;
 
@@ -13,7 +13,7 @@
     }
 
     &__content{
-        background-color: #262829;
+        background-color: $bg_primary;
         padding: $offset;
         border-radius: 1em;
         margin: 0 auto;
@@ -85,14 +85,20 @@
     }
 
     &__button{
-        padding: 0.9em 1.3em;
+        padding: 1.1em 1.3em;
         border-radius: 0.7em;
         background: rgba(255,255,255,0.1);
         font-size: 1.2em;
+        flex-grow: 1;
+        text-align: center;
 
         &.focus{
             background: #fff;
             color: #000;
+        }
+
+        @media screen and (max-width: $media_xm) {
+            text-align: center;
         }
 
         + .modal__button{
@@ -193,6 +199,22 @@
 
     &--overlay{
         z-index: 60;
+    }
+
+    &--buttons-column{
+        .modal__footer{
+            display: block;
+        }
+
+        .modal__button{
+            width: 100%;
+            text-align: center;
+
+            + .modal__button{
+                margin-left: 0;
+                margin-top: 1em;
+            }
+        }
     }
 
     .scroll--mask .scroll__content{

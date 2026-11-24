@@ -178,26 +178,91 @@ function get(img){
 	return extract(ctx.getImageData(0, 0, canvas.width, canvas.height))
 }
 
-function blur(img, callback){
-    reset(200,130)
+/**
+ * Копия canvas — вместо toDataURL() → Image: картинку из data URL не нужно декодировать,
+ * и она не бывает «битой» (на ТВ toDataURL может вернуть 'data:,')
+ * @returns {HTMLCanvasElement|null}
+ */
+function snapshot(source){
+    try{
+        let copy     = document.createElement('canvas')
+        let copy_ctx = copy.getContext('2d')
 
-    let ratio = Math.max(canvas.width / img.width, canvas.height / img.height)
+        if(!copy_ctx) return null
+
+        copy.width  = source.width
+        copy.height = source.height
+
+        copy_ctx.drawImage(source, 0, 0)
+
+        return copy
+    }
+    catch(e){
+        return null
+    }
+}
+
+/**
+ * Размыть картинку. В callback приходит Image (как раньше — Color.blur доступен плагинам как Lampa.Color).
+ * Теперь callback вызывается после onload/onerror картинки, а не по таймеру
+ */
+function blur(img, callback){
+    blurCanvas(img, (result)=>{
+        let nimg = new Image()
+        let done = false
+
+        let finish = ()=>{
+            if(done) return
+
+            done = true
+
+            callback(nimg)
+        }
+
+        nimg.onload  = finish
+        nimg.onerror = finish
+
+        try{
+            if(result) nimg.src = result.toDataURL()
+            else finish()
+        }
+        catch(e){
+            finish()
+        }
+
+        setTimeout(finish, 2000)
+    })
+}
+
+/**
+ * Размыть картинку. В callback приходит canvas с результатом или null
+ */
+function blurCanvas(img, callback){
+    // Свой canvas на каждый вызов: размытие идёт в воркере асинхронно,
+    // а общий canvas за это время может переразмерить get() следующей картинки
+    let blur_canvas = document.createElement('canvas'),
+        blur_ctx    = blur_canvas.getContext('2d')
+
+    if(!blur_ctx || !img.width || !img.height) return setTimeout(()=>callback(null), 100)
+
+    blur_canvas.width  = 200
+    blur_canvas.height = 130
+
+    let ratio = Math.max(blur_canvas.width / img.width, blur_canvas.height / img.height)
 
     let nw = img.width * ratio,
 		nh = img.height * ratio
 
-    ctx.drawImage(img, -(nw-canvas.width) / 2, -(nh-canvas.height) / 2, nw, nh)
-    
-    Blur.canvasRGB(canvas, 0, 0, canvas.width, canvas.height, 80,()=>{
-        let nimg = new Image()
+    try{
+        blur_ctx.drawImage(img, -(nw-blur_canvas.width) / 2, -(nh-blur_canvas.height) / 2, nw, nh)
+    }
+    catch(e){
+        return setTimeout(()=>callback(null), 100)
+    }
 
-        try{
-            nimg.src = canvas.toDataURL()
-        }
-        catch(e){}
-
+    Blur.canvasRGB(blur_canvas, 0, 0, blur_canvas.width, blur_canvas.height, 80,()=>{
         setTimeout(()=>{
-            callback(nimg)
+            callback(blur_canvas)
         },100)
     })
 }
@@ -241,12 +306,14 @@ function blurPoster(img, w, h, callback){
             ctx_poster.globalCompositeOperation = 'source-over'
 
             
-            getImg((blured)=>{
+            let blurred = snapshot(canvas_poster)
+
+            setTimeout(()=>{
                 canvas_poster.width  = w
                 canvas_poster.height = h
 
                 ctx_poster.drawImage(img, -(nw-canvas_poster.width) / 2, -(nh-canvas_poster.height) / 2, nw, nh)
-                
+
                 let gradient = ctx_poster.createLinearGradient(0, 0, 0, canvas_poster.height)
                     gradient.addColorStop(0, 'rgba(0, 0, 0, 1)')
                     gradient.addColorStop(0.6, 'rgba(0, 0, 0, 1)')
@@ -258,17 +325,46 @@ function blurPoster(img, w, h, callback){
                 ctx_poster.fillRect(0, 0, canvas_poster.width, canvas_poster.height)
                 ctx_poster.globalCompositeOperation = 'source-over'
 
-                ctx_poster.drawImage(blured, 0, 0)
+                if(blurred){
+                    try{
+                        ctx_poster.drawImage(blurred, 0, 0)
+                    }
+                    catch(e){}
+                }
 
                 getImg(callback)
-            })
+            },100)
         })
     },100)
 }
 
 function rgbToHex(r, g, b) {
     return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
-}  
+}
+
+function circlePattern(size = 20) {
+    var w = 200;
+    var h = 200;
+
+    reset(w, h)
+
+    var r = size / 2;
+
+    for (var y = 0; y < h; y += size) {
+        var offset = (y / size) % 2 ? r : 0;
+
+        for (var x = 0; x < w; x += size) {
+
+            ctx.beginPath();
+            ctx.arc(x + r + offset, y + r, r, 0, Math.PI * 2);
+
+            ctx.fillStyle = Math.random() > 0.5 ? '#000' : '#fff';
+            ctx.fill();
+        }
+    }
+
+    return canvas.toDataURL();
+}
 
 export default {
     get,
@@ -276,9 +372,11 @@ export default {
     palette,
     rgba,
     blur,
+    blurCanvas,
     tone,
     rgbToHsl,
     rgbToHex,
     hslToRgb,
-    blurPoster
+    blurPoster,
+    circlePattern
 }

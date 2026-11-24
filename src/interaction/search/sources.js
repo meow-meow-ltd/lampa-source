@@ -4,6 +4,7 @@ import Controller from '../../core/controller'
 import Api from '../../core/api/api'
 import Result from './results'
 import Layer from '../../core/layer'
+import Permit from '../../core/account/permit'
 
 let stop_keys = [
     'пор',
@@ -11,13 +12,24 @@ let stop_keys = [
     'порно',
     'секс',
     'член',
+    'гей',
+    'лгбт',
+    'лесби',
+    'бисексуал',
+    'трансгендер',
 
     'por',
     'porn',
     'porno',
     'sex',
     'hot',
-    'xxx'
+    'xxx',
+    'lgbt',
+    'lesbian',
+    'bisexual',
+    'queer',
+    'transgender',
+    'same sex'
 ]
 
 function Sources(params = {}){
@@ -38,12 +50,21 @@ function Sources(params = {}){
             horizontal: true
         })
 
-        let sources = params.sources || Api.availableDiscovery()
+        let sources
 
-        sources.forEach(this.build.bind(this))
+        if(Permit.child){
+            sources = [Api.sources.cub.discovery()]
 
-        if(!params.sources){
-            params.additional.forEach(this.build.bind(this))
+            sources.forEach(this.build.bind(this))
+        }
+        else{
+            sources = params.sources || Api.availableDiscovery()
+
+            sources.forEach(this.build.bind(this))
+
+            if(!params.sources){
+                params.additional.forEach(this.build.bind(this))
+            }
         }
 
         this.enable(results[0])
@@ -161,7 +182,7 @@ function Sources(params = {}){
     this.search = function(query, immediately){
         results.forEach(result => result.cancel())
 
-        if(!stop_keys.find(k=>k == query.toLowerCase())){
+        if(!stop_keys.find(k=>k == query.toLowerCase().trim())){
             last_query = query
 
             this.listener.send('search',{query, immediately})

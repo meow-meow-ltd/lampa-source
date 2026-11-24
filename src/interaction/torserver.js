@@ -9,14 +9,24 @@ import EpisodeParser from '../utils/episodes_parser'
 import Arrays from '../utils/arrays'
 import SETTINGS_KEYS from '../utils/constants'
 
-let network = new Request()
+let network  = new Request()
+let gst_check = new Request()
+let gst_work = false
 
+/**
+ * Возвращает url сервера
+ * @returns {string}
+ */
 function url(){
     let u = ip()
 
     return u ? Utils.checkHttp(u, true) : u
 }
 
+/**
+ * Возвращает ip сервера
+ * @returns {string}
+ */
 function ip(){
     let one = Storage.get(SETTINGS_KEYS.TORRSERVER_URL)
     let two = Storage.get('torrserver_url_two')
@@ -24,6 +34,12 @@ function ip(){
     return Storage.field('torrserver_use_link') == 'two' ? two || one : one || two
 }
 
+/**
+ * Возвращает список торрентов
+ * @param {function} success - функция при успешном получении списка
+ * @param {function} fail - функция при ошибке получения списка
+ * @returns {void}
+ */
 function my(success, fail){
     let data = JSON.stringify({
         action: 'list'
@@ -37,6 +53,11 @@ function my(success, fail){
     }, fail, data)
 }
 
+/**
+ * Возвращает статистику загрузки торрента по хэшу
+ * @param {string} hash - хэш торрента
+ * @param {function} success - функция при успешном получении статистики
+ */
 function cache(hash, success, fail){
     let data = JSON.stringify({
         action: 'get',
@@ -46,10 +67,43 @@ function cache(hash, success, fail){
     network.silent(url()+'/cache', success, fail, data)
 }
 
+function viewed(hash, success, fail){
+    let data = JSON.stringify({
+        action: 'list',
+        hash: hash
+    })
+
+    clear()
+    network.timeout(5000)
+    network.silent(url()+'/viewed', success, fail, data)
+}
+
+function viewedSet(hash, file_index, timecode, success, fail){
+    let data = JSON.stringify({
+        action: 'set',
+        hash: hash,
+        file_index: file_index,
+        timecode: timecode
+    })
+
+    network.silent(url()+'/viewed', success, fail, data)
+}
+
+/**
+ * Добавляет торрент на сервер
+ * @param {object} object - объект с данными торрента
+ * @param {function} success - функция при успешном добавлении
+ * @param {function} fail - функция при ошибке добавления
+ */
 function add(object, success, fail){
     let send_data = object.data ? Arrays.clone(object.data) : false
+    let category  = 'movie'
 
-    if(send_data && send_data.movie) send_data.movie = Utils.clearCard(send_data.movie)
+    if(send_data && send_data.movie){
+        category = send_data.movie.name ? 'tv' : 'movie'
+        
+        send_data.movie = Utils.clearCard(send_data.movie)
+    }
 
     let json = {
         action: 'add',
@@ -58,10 +112,8 @@ function add(object, success, fail){
         poster: object.poster,
         data: send_data ? JSON.stringify(send_data) : '',
         save_to_db: true,
+        category
     }
-
-    console.log('Torserver', 'send data', send_data)
-    console.log('Torserver', 'add', json)
 
     let data = JSON.stringify(json)
 
@@ -70,10 +122,21 @@ function add(object, success, fail){
     network.silent(url()+'/torrents', success, fail, data)
 }
 
+/**
+ * Добавляет торрент на сервер с проверкой хэша
+ * @param {object} object - объект с данными торрента
+ * @param {function} success - функция при успешном добавлении
+ * @param {function} fail - функция при ошибке добавления
+ */
 function hash(object, success, fail){
     let send_data = object.data ? Arrays.clone(object.data) : false
+    let category  = 'movie'
 
-    if(send_data && send_data.movie) send_data.movie = Utils.clearCard(send_data.movie)
+    if(send_data && send_data.movie){
+        category = send_data.movie.name ? 'tv' : 'movie'
+
+        send_data.movie = Utils.clearCard(send_data.movie)
+    }
 
     let json = {
         action: 'add',
@@ -82,10 +145,8 @@ function hash(object, success, fail){
         poster: object.poster,
         data: send_data ? JSON.stringify(send_data) : '',
         save_to_db: Storage.get('torrserver_savedb','false'),
+        category
     }
-
-    console.log('Torserver', 'send data', send_data)
-    console.log('Torserver', 'hash', json)
 
     let data = JSON.stringify(json)
 
@@ -96,6 +157,12 @@ function hash(object, success, fail){
     }, data)
 }
 
+/**
+ * Возвращает список файлов торрента по хэшу
+ * @param {string} hash - хэш торрента
+ * @param {function} success - функция при успешном получении списка файлов
+ * @param {function} fail - функция при ошибке получения списка файлов
+ */
 function files(hash, success, fail){
     let data = JSON.stringify({
         action: 'get',
@@ -113,6 +180,11 @@ function files(hash, success, fail){
     }, fail, data)
 }
 
+/**
+ * Проверяет соединение с сервером
+ * @param {function} success - функция при успешном соединении
+ * @param {function} fail - функция при ошибке соединения
+ */
 function connected(success, fail){
     clear()
 
@@ -125,16 +197,78 @@ function connected(success, fail){
         else{
             success(json)
         }
+
+        gstCheck()
     },(a,c)=>{
         fail(network.errorDecode(a,c))
     },JSON.stringify({action: 'get'}))
 }
 
+/**
+ * Проверяет работу gstreamer на сервере
+ * @returns {void}
+ */
+function gstCheck(){
+    // отдельный объект запросов: общий network очищается через clear() при добавлении торрента и получении файлов,
+    // и проверка отменялась до ответа, из-за чего gst_work оставался false
+    gst_check.clear()
+
+    gst_check.timeout(5000)
+
+    gst_check.silent(url()+'/gst/echo',(json)=>{
+        gst_work = true
+    },(a,c)=>{
+        gst_work = false
+    })
+}
+
+/**
+ * Возвращает true, если gstreamer работает на сервере и включен в настройках
+ * @returns {boolean}
+ */
+function gstWork(){
+    return Storage.field('torrserver_gts') && gst_work
+}
+
+/**
+ * Возвращает true, если gstreamer работает на сервере
+ * @returns {boolean}
+ */
+function gstExist(){
+    return gst_work
+}
+
+/**
+ * Возвращает ссылку на потоковое воспроизведение файла торрента
+ * @param {string} path - путь к файлу торрента
+ * @param {string} hash - хэш торрента
+ * @param {number} id - индекс файла в торрента
+ * @returns {string} - ссылка на потоковое воспроизведение
+ */
 function stream(path, hash, id){
+    if(gstWork()) return url() + '/gst/' + encodeURIComponent(hash) + '/master.m3u8?index=' + id + '&audio=0'
+
     return url() + '/stream/'+ encodeURIComponent(path.split('\\').pop().split('/').pop()) +'?link=' + hash + '&index=' + id + '&' + (Storage.field('torrserver_preload') ? 'preload' : 'play')
 }
 
+/**
+ * Возвращает ссылку на потоковое воспроизведение файла торрента с заменой параметра preload на play
+ * @param {string} url - ссылка на потоковое воспроизведение
+ * @returns {string} - ссылка на потоковое воспроизведение с заменой параметра preload на play
+ */
+function toPlayUrl(url){
+    return ip() && url.indexOf(ip()) >= 0 ? url.replace('&preload','&play') : url
+}
+
+/**
+ * Дропает торрент с сервера
+ * @param {string} hash - хэш торрента
+ * @param {function} success - функция при успешном удалении
+ * @param {function} fail - функция при ошибке удаления
+ */
 function drop(hash, success, fail){
+    if(gstWork()) return network.silent(url()+'/gst/remove?hash=' + encodeURIComponent(hash), success, fail, data, {dataType: 'text'})
+
     let data = JSON.stringify({
         action: 'drop',
         hash: hash
@@ -145,6 +279,12 @@ function drop(hash, success, fail){
     network.silent(url()+'/torrents', success, fail, data, {dataType: 'text'})
 }
 
+/**
+ * Удаляет торрент с сервера
+ * @param {string} hash - хэш торрента
+ * @param {function} success - функция при успешном удалении
+ * @param {function} fail - функция при ошибке удаления
+ */
 function remove(hash, success, fail){
     let data = JSON.stringify({
         action: 'rem',
@@ -156,6 +296,11 @@ function remove(hash, success, fail){
     network.silent(url()+'/torrents', success, fail, data, {dataType: 'text'})
 }
 
+/**
+ * Парсит данные торрента и возвращает объект с информацией о нем
+ * @param {object} data - данные торрента
+ * @returns {object} - объект с информацией о торрента
+ */
 function parse(data){
     let result = EpisodeParser.parse(data)
         result.hash = Utils.hash(result.hash_string)
@@ -163,6 +308,11 @@ function parse(data){
     return result
 }
 
+/**
+ * Очищает имена файлов торрента от лишних символов и возвращает массив с объектами файлов
+ * @param {array} files - массив с объектами файлов торрента
+ * @returns {array} - массив с объектами файлов торрента с очищенными именами
+ */
 function clearFileName(files){
     let combo = []
 
@@ -225,10 +375,18 @@ function clearFileName(files){
     return files
 }
 
+/**
+ * Очищает очередь запросов к серверу
+ * @returns {void}
+ */
 function clear(){
     network.clear()
 }
 
+/**
+ * Показывает модальное окно с информацией об ошибке соединения с сервером
+ * @returns {void}
+ */
 function error(){
     let temp = Template.get('torrent_error',{ip: ip()})
     let list = temp.find('.torrent-checklist__list > li')
@@ -310,5 +468,11 @@ export default {
     parse,
     error,
     cache,
-    clearFileName
+    gstCheck,
+    gstWork,
+    gstExist,
+    clearFileName,
+    toPlayUrl,
+	viewed,
+	viewedSet
 }

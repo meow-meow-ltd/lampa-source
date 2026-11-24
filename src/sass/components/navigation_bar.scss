@@ -9,7 +9,7 @@
 
     &__body{
         border-radius: 1.4em;
-        background: #262829;
+        background: $bg_primary;
         padding: 1.2em;
 
         display: flex;
@@ -47,6 +47,10 @@ body.true--mobile.orientation--landscape .navigation-bar{
     .navigation-bar__body{
         flex-direction: column;
     }
+}
+
+body.platform--apple .navigation-bar__body{
+    border-radius: 5em;
 }
 
 body.ambience--enable .navigation-bar{

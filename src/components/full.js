@@ -1,5 +1,7 @@
 import Start from '../components/full/start'
 import Description from '../components/full/descr'
+import MetadataChart from './full/metadata/chart'
+import MetadataTags from './full/metadata/tags'
 import Persons from './full/persons'
 import Api from '../core/api/api'
 import Arrays from '../utils/arrays'
@@ -16,10 +18,17 @@ import MainModule from '../interaction/items/main/module/module'
 import Cards from './full/cards'
 import Background from '../interaction/background'
 import Template from '../interaction/template'
+import Permit from '../core/account/permit'
+import TMDB from '../core/api/sources/tmdb'
+import VPN from '../core/vpn'
+import Keys from '../core/tmdb/keys'
+import Kinopoisk from '../services/kinopoisk'
 
 let components = {
     start: Start,
     description: Description,
+    metadata_chart: MetadataChart,
+    metadata_tags: MetadataTags,
     persons: Persons,
     cards: Cards,
     discuss: Discuss,
@@ -47,19 +56,57 @@ function component(object){
 
             this.html.addClass('layer--wheight')
 
+            // Карточку Кинопоиска определяем по списку CUB — ждём его загрузку (при запуске карточка открывается раньше)
+            Kinopoisk.ready(()=>{
+                if(!this.destroyed) this.emit('loadFull')
+            })
+        },
+        onLoadFull: function(){
             Api.full(object, (data)=>{
                 if(!data.movie) return this.emit('error', {empty: true})
-                
-                if(data.movie.blocked) return this.emit('error', {blocked: true})
-
-                // Для плагинов которые используют Activity.active().card
-                object.card = data.movie
 
                 // Добавляем в пропсы данные
                 this.props.set(data)
 
+                // Проверяем по ключевым словам, есть ли в фильме ЛГБТ тематика
+                let key_tags   = data.movie.keywords ? (data.movie.keywords.results || data.movie.keywords.keywords) : []
+                let lgbt_block = Storage.field('lgbt_content_block') || VPN.is(['ru','by'])
+
+                if(lgbt_block && key_tags && key_tags.find && key_tags.length && window.lampa_settings.lgbt) {
+                    Keys.lgbt.forEach(keyword=>{
+                        if(key_tags.find(k=>k.name.toLowerCase() == keyword)) data.movie.lgbt = 'keyword (' + keyword + ')'
+                    })
+                }
+
+                // Если фильм не помечен как ЛГБТ, но есть в списке блокировки ЛГБТ, то помечаем его
+                if(lgbt_block && window.lampa_settings.lgbt && !data.movie.lgbt) {
+                    if(window.lampa_settings.lgbt[data.movie.id + '_' + (data.movie.first_air_date ? 'tv' : 'movie')]) data.movie.lgbt = 'list'
+                }
+                
+                if(data.movie.blocked || data.movie.lgbt) return this.emit('error', {blocked: true, lgbt: data.movie.lgbt})
+
+                // Для плагинов которые используют Activity.active().card
+                object.card = data.movie
+
+                // Карточка смотрится только на Кинопоиске — события не отправляем, чтобы плагины не добавляли свои кнопки
+                this.kinopoisk = Boolean(Kinopoisk.find(data.movie))
+
+                // Проверяем можно ли показывать полную карточку детям
+                let watch = Utils.canWatchChildren(TMDB.parsePG(data.movie), Permit.profile.age)
+
+                // События для плагинов: не для детского профиля и не для карточки Кинопоиска
+                let events = watch && !this.kinopoisk
+
+                // Ищем по ключевым словам, есть ли в фильме тематика для взрослых
+                let adult_block = key_tags && key_tags.find && key_tags.length ? key_tags.find(key=>Keys.adult.find(word=>key.name.toLowerCase().indexOf(word) >= 0)) : false
+
+                if(Storage.field('adult_content_view')) adult_block = false
+
+                // Если фильм помечен как для взрослых, то добавляем это в данные фильма
+                if(adult_block) data.movie.adult = true
+
                 // Отправляем событие, что началась загрузка полной карточки
-                Lampa.Listener.send('full', {
+                if(events) Lampa.Listener.send('full', {
                     link: this,
                     type:'start',
                     props: this.props,
@@ -68,8 +115,22 @@ function component(object){
                     data
                 })
 
+                if(data.metadata && data.metadata && data.metadata.status && data.metadata.status == 'completed'){
+                    this.rows.push(['metadata_chart', {
+                        movie: data.movie,
+                        metadata: data.metadata
+                    }])
+
+                    if(Lang.selected(['ru','uk','be'])){
+                        this.rows.push(['metadata_tags', {
+                            movie: data.movie,
+                            metadata: data.metadata
+                        }])
+                    }
+                }
+
                 // Создаем эпизоды
-                if(data.episodes && data.episodes.episodes) {
+                if(!adult_block && data.episodes && data.episodes.episodes) {
                     let episodes = data.episodes.episodes
 
                     // Если сериал многосезонный, то выбираем нужный сезон
@@ -104,7 +165,7 @@ function component(object){
                 }
 
                 // Создаем режиссеров
-                if(data.persons && data.persons.crew && data.persons.crew.length) {
+                if(!adult_block && data.persons && data.persons.crew && data.persons.crew.length) {
                     let directors = data.persons.crew.filter(member => member.job === 'Director')
 
                     directors.length && this.rows.push(['persons', {
@@ -114,13 +175,13 @@ function component(object){
                 }
 
                 // Создаем актеров
-                if(data.persons && data.persons.cast && data.persons.cast.length) this.rows.push(['persons', {
+                if(!adult_block && data.persons && data.persons.cast && data.persons.cast.length) this.rows.push(['persons', {
                     results: data.persons.cast,
                     title: Lang.translate('title_actors')
                 }])
 
                 // Создаем отзывы
-                if(data.discuss) this.rows.push(['discuss', {
+                if(!adult_block && data.discuss) Arrays.insert(this.rows, data.discuss.result.length ? 2 : this.rows.length, ['discuss', {
                     ...data.discuss,
                     movie: data.movie,
                     title: Lang.translate('title_comments'),
@@ -128,21 +189,28 @@ function component(object){
                 }])
 
                 // Создаем коллекцию
-                if(data.collection && data.collection.results && data.collection.results.length){
-                    data.collection.title  = Lang.translate('title_collection')
+                if (!adult_block && data.collection && data.collection.results && data.collection.results.length) {
+                    data.collection.title = Lang.translate('title_collection')
+
+                    // Сортируем по году от меньшего к большему
+                    data.collection.results.sort((a, b) => {
+                        let yearA = a.release_date ? a.release_date.split('-')[0] : a.first_air_date ? a.first_air_date.split('-')[0] : '0'
+                        let yearB = b.release_date ? b.release_date.split('-')[0] : b.first_air_date ? b.first_air_date.split('-')[0] : '0'
+                        return parseInt(yearA) - parseInt(yearB)
+                    })
 
                     this.rows.push(['cards', data.collection])
                 }
 
                 // Создаем рекомендации
-                if(data.recomend && data.recomend.results && data.recomend.results.length){
+                if(!adult_block && data.recomend && data.recomend.results && data.recomend.results.length){
                     data.recomend.title   = Lang.translate('title_recomendations')
 
                     this.rows.push(['cards', data.recomend])
                 }
 
                 // Создаем похожие
-                if(data.simular && data.simular.results && data.simular.results.length){
+                if(!adult_block && data.simular && data.simular.results && data.simular.results.length){
                     data.simular.title   = Lang.translate('title_similar')
 
                     this.rows.push(['cards', data.simular])
@@ -166,7 +234,7 @@ function component(object){
                 Timetable.update(data.movie)
 
                 // Отправляем событие, что полная карточка загружена
-                Lampa.Listener.send('full', {
+                if(events) Lampa.Listener.send('full', {
                     link: this,
                     type: 'complite',
                     props: this.props,
@@ -182,6 +250,12 @@ function component(object){
 
                 this.activity.toggle()
 
+                if(Number.isInteger(object.episode_season) && this.items.length){
+                    let season = object.episode_season
+                    delete object.episode_season
+                    this.items[0].emit('watch', {season})
+                }
+
             }, this.emit.bind(this, 'error'))
         },
         onBuild: function(){
@@ -194,7 +268,7 @@ function component(object){
             this.props.get('movie') && Background.immediately(Utils.cardImgBackgroundBlur(this.props.get('movie')))
         },
         onScroll: function(position){
-            let size = this.tv ? (Math.round(this.active / this.view) + 1) * this.view + 1 : this.rows.length
+            let size = this.tv ? Math.min(this.active + this.view, this.rows.length) : this.rows.length
             let add  = this.rows.slice(this.items.length, size)
 
             if(add.length) {
@@ -220,8 +294,8 @@ function component(object){
 
             this.emit('append', item)
 
-            // Отправляем событие, что компонент создан
-            Lampa.Listener.send('full', {
+            // Отправляем событие, что компонент создан (кроме карточки Кинопоиска)
+            if(!this.kinopoisk) Lampa.Listener.send('full', {
                 link: this,
                 type:'build',
                 props: this.props,
@@ -234,6 +308,7 @@ function component(object){
         onError: function(status){
             let params  = this.params.empty
             let dmca    = Utils.dcma(this.object.method, this.object.id)
+            let lgbt    = this.props.get('movie') && this.props.get('movie').lgbt
 
             if(dmca || status.blocked){
                 params.title  = Lang.translate('dmca_title')
@@ -243,8 +318,16 @@ function component(object){
 
             params.info_button = [
                 ['Movie id', this.object.id],
-                ['DMCA', dmca ? 'Yes' : 'No']
+                ['DMCA', dmca ? 'Yes' : 'No'],
+                ['LGBT', lgbt ? 'Yes, ' + lgbt : 'No'],
             ]
+
+            if(lgbt){
+                params.title = Lang.translate('dmca_title_lgbt')
+                params.descr = Lang.translate('dmca_descr_lgbt')
+
+                params.info_button.push(['Title', this.props.get('movie').title || this.props.get('movie').name || '---'])
+            }
 
             // Вызываем пустой экран
             this.empty(status)

@@ -3,148 +3,161 @@ import Manifest from '../../core/manifest'
 import Storage from '../../core/storage/storage'
 import Platform from '../../core/platform'
 import Timer from '../../core/timer'
-import Metric from '../../services/metric'
 import Arrays from '../../utils/arrays'
+import VPN from '../../core/vpn'
 
-let played = {
-    time: 0,
-    prerolls: [],
-    user: {}
-}
+class VastManager {
+    constructor(params){
+        this.played = {
+            time: 0,
+            prerolls: []
+        }
 
-let data_loaded = {
-    ad: []
-}
+        this.data_loaded = {
+            ad: []
+        }
 
-function init(){
-    load()
+        Arrays.extend(params, {
+            api: 'preroll',
+            cooling: 1000 * 60 * 5
+        })
 
-    Timer.add(1000 * 60 * 10, load)
-}
+        this.params = params
+    }
 
-function load(){
-    let pos = 1
+    init(){
+        this.load()
 
-    let request = ()=>{
-        let domain = Manifest.soc_mirrors[pos]
+        Timer.add(1000 * 60 * 60, this.load.bind(this))
+    }
 
-        if(domain){
-            $.ajax({
-                url: Utils.protocol() + domain+'/api/ad/vast',
-                type: 'GET',
-                dataType: 'json',
-                timeout: 10000,
-                success: (data)=>{
-                    if(data.ad && Arrays.isArray(data.ad)){
-                        data_loaded.ad = data.ad
+    load(){
+        let pos = 0
+        let self = this
 
-                        console.log('Ad','vast prerolls loaded', data_loaded.ad.length)
+        let request = function(){
+            let domain = Manifest.cub_mirrors[pos]
+
+            if(!domain) return
+
+            let url = Utils.protocol() + domain + '/api/ad/get/' + self.params.api
+            let xhr = new XMLHttpRequest()
+
+            xhr.open('GET', url, true)
+            xhr.timeout = 10000
+
+            xhr.onload = function(){
+                if(xhr.status >= 200 && xhr.status < 300){
+                    try{
+                        let data = JSON.parse(xhr.responseText)
+
+                        if(data.ad && Arrays.isArray(data.ad)){
+                            self.data_loaded.ad = data.ad
+
+                            console.log('Ad', 'manager ' + self.params.api, 'loaded', self.data_loaded.ad.length)
+                        }
+                        else{
+                            console.log('Ad', 'manager ' + self.params.api, 'wrong format from', domain)
+
+                            pos++
+
+                            request()
+                        }
                     }
-                    else{
-                        console.log('Ad','wrong vast prerolls format from', domain)
+                    catch(e){
+                        console.log('Ad', 'manager ' + self.params.api, 'parse error from', domain)
 
                         pos++
 
                         request()
                     }
-                },
-                error: ()=>{
-                    console.log('Ad','no load vast prerolls from', domain)
+                }
+                else{
+                    console.log('Ad', 'manager ' + self.params.api, 'no load from', domain)
 
                     pos++
 
                     request()
                 }
-            })
+            }
+
+            xhr.onerror = function(){
+                console.log('Ad', 'manager ' + self.params.api, 'no load from', domain)
+
+                pos++
+
+                request()
+            }
+
+            xhr.ontimeout = function(){
+                console.log('Ad', 'manager ' + self.params.api, 'timeout from', domain)
+
+                pos++
+
+                request()
+            }
+
+            xhr.send()
         }
+
+        request()
     }
 
-    request()
-}
+    coolingReady(){
+        return Date.now() - this.played.time > this.params.cooling
+    }
 
-function random(min, max) {
-    return Math.floor(Math.random() * (max - min + 1) + min)
-}
+    markCooling(){
+        this.played.time = Date.now()
+    }
 
-function whitoutGenres(whitout_genre){
-    let movie        = Storage.get('activity', '{}').movie
-    let movie_genres = []
+    withoutGenres(without_genre){
+        let movie = Storage.get('activity', '{}').movie
 
-    try{
-        movie_genres = movie.genres.map(g=>g.id)
+        try{
+            let genres = without_genre.split(',').map(g => parseInt(g))
 
-        let genres = whitout_genre.split(',').map(g=>parseInt(g))
-
-        if(genres.length && movie.genres.find(g=>genres.find(gg=>gg == g.id))){
-            return true
+            if(genres.length && movie.genres.find(g => genres.find(gg => gg == g.id))){
+                return true
+            }
         }
-    }
-    catch(e){}
-}
-
-function pickTag(tags) {
-    let total = tags.reduce((sum, t) => sum + t.impressions, 0)
-    let rand  = Math.random() * total
-    let acc   = 0
-    let tag
-
-    for (let i = 0; i < tags.length; i++) {
-        tag = tags[i]
-
-        acc += tag.impressions
-
-        if (rand < acc) return tag
+        catch(e){}
     }
 
-    return tag
-}
+    orderTag(tags){
+        tags.sort((a, b) => b.impressions - a.impressions)
 
-function orderTag(tags) {
-    tags.sort((a, b) => b.impressions - a.impressions)
-
-    return tags[0]
-}
-
-function filter(view, player_data){
-    view = view.filter(v=>!played.prerolls.find(pr=>pr == v.name))
-
-    if(!window.lampa_settings.developer.ads){
-        view = view.filter(v=>whitoutGenres(v.whitout_genre) !== true)
-        view = view.filter(v=>v.screen == (Platform.screen('tv') ? 'tv' : 'mobile') || v.screen == 'all')
-        view = view.filter(v=>v.platforms.indexOf(Platform.get()) !== -1 || v.platforms.indexOf('all') !== -1 || !v.platforms.length)
-        view = view.filter(v=>v.region.split(',').indexOf(player_data.ad_region) !== -1 || v.region.indexOf('all') !== -1 || !v.region.length)
+        return tags[0]
     }
 
-    console.log('Ad', 'filter view ', view)
+    filter(view){
+        view = view.filter(v => !this.played.prerolls.find(pr => pr == v.name))
 
-    if(view.length){
-        let preroll = orderTag(view)
+        if(!window.lampa_settings.developer.ads){
+            view = view.filter(v => this.withoutGenres(v.whitout_genre) !== true)
+            view = view.filter(v => v.screen == (Platform.screen('tv') ? 'tv' : 'mobile') || v.screen == 'all')
+            view = view.filter(v => v.platforms.indexOf(Platform.get()) !== -1 || v.platforms.indexOf('all') !== -1 || !v.platforms.length)
+            view = view.filter(v => v.region.split(',').indexOf(VPN.code()) !== -1 || v.region.indexOf('all') !== -1 || !v.region.length)
+        }
 
-        played.prerolls.push(preroll.name)
+        console.log('Ad', 'manager ' + this.params.api, 'filter view', view)
 
-        return preroll
-    }
-    
-    return null
-}
+        if(view.length){
+            let preroll = this.orderTag(view)
 
-function get(player_data, first_run = false){
-    if(first_run) played.prerolls = []
+            this.played.prerolls.push(preroll.name)
 
-    let preroll = data_loaded.ad.length ? filter(data_loaded.ad, player_data) : null
+            return preroll
+        }
 
-    Metric.counter('ad_manager_get', data_loaded.ad.length ? 1 : 0, preroll ? 'show' : 'none', player_data.ad_region)
-
-    if(preroll){
-        played.user[preroll.name]++
-
-        return preroll
+        return null
     }
 
-    return null
+    get(first_run = false){
+        if(first_run) this.played.prerolls = []
+
+        return this.data_loaded.ad.length ? this.filter(this.data_loaded.ad) : null
+    }
 }
 
-export default {
-    init,
-    get
-}
+export default VastManager

@@ -38,7 +38,7 @@ function Request(){
     var _calls = []
     var _last
 
-    var last_reguest
+    var last_request
 
     let need = {
         timeout: 1000 * 30
@@ -51,11 +51,11 @@ function Request(){
     /**
      * Видимый запрос
      * @param {String} url адрес
-     * @param {Function} complite успешно
+     * @param {Function} complete успешно
      * @param {Function} error ошибка
      * @param {Object} post_data данные для пост запроса
      */
-    this.get = function(url, complite, error, post_data){
+    this.get = function(url, complete, error, post_data){
         clear()
 
         go({
@@ -70,7 +70,7 @@ function Request(){
                 listener.send('before_complite');
             },
             complite: function(data){
-                if(complite) complite(data);
+                if(complete) complete(data);
             },
             after_complite: function(){
                 listener.send('after_complite');
@@ -95,12 +95,12 @@ function Request(){
     /**
      * Тихий запрос, отработает в любом случае
      * @param {String} url адрес
-     * @param {Function} complite успешно
+     * @param {Function} complete успешно
      * @param {Function} error ошибка
      * @param {Object} post_data данные для пост запроса
      * @param {Object} params дополнительные параметры
      */
-    this.quiet = function(url, complite, error, post_data, params){
+    this.quiet = function(url, complete, error, post_data, params){
         var add_params = {};
 
         if(params){
@@ -113,7 +113,7 @@ function Request(){
             post_data: post_data,
 
             complite: function(data){
-                if(complite) complite(data);
+                if(complete) complete(data);
             },
             error: function(data){
                 if(error) error(data);
@@ -128,25 +128,25 @@ function Request(){
     /**
      * Бесшумный запрос, сработает прерывание при новом запросе
      * @param {String} url адрес
-     * @param {Function} complite успешно
+     * @param {Function} complete успешно
      * @param {Function} error ошибка
      * @param {Object} post_data данные для пост запроса
      * @param {Object} params дополнительные параметры
      */
-    this.silent = function(url, complite, error, post_data, params){
+    this.silent = function(url, complete, error, post_data, params){
         var add_params = {};
 
         if(params){
             add_params = params;
         }
 
-        var reguest = {
+        var call = {
             url: url,
-            complite: complite,
+            complete: complete,
             error: error
         }
 
-        _calls.push(reguest)
+        _calls.push(call)
 
         var data = {
             url: url,
@@ -154,10 +154,10 @@ function Request(){
             post_data: post_data,
 
             complite: function(data){
-                if(_calls.indexOf(reguest) !== -1 && reguest.complite) reguest.complite(data);
+                if(_calls.indexOf(call) !== -1 && call.complete) call.complete(data);
             },
             error: function(data){
-                if(_calls.indexOf(reguest) !== -1 && reguest.error) reguest.error(data);
+                if(_calls.indexOf(call) !== -1 && call.error) call.error(data);
             },
 
             end: function(){
@@ -173,18 +173,18 @@ function Request(){
     /**
      * Отработать только последний запрос в стеке
      * @param {String} url адрес
-     * @param {Function} complite успешно
+     * @param {Function} complete успешно
      * @param {Function} error ошибка
      * @param {Object} post_data данные для пост запроса
      */
-    this.last = function(url, complite, error, post_data){
-        var reguest = {
+    this.last = function(url, complete, error, post_data){
+        var call = {
             url: url,
-            complite: complite,
+            complete: complete,
             error: error
         }
 
-        _last = reguest;
+        _last = call;
 
         go({
             url: url,
@@ -192,7 +192,7 @@ function Request(){
             post_data: post_data,
 
             complite: function(data){
-                if(_last && _last.complite) _last.complite(data);
+                if(_last && _last.complete) _last.complete(data);
             },
             error: function(data){
                 if(_last && _last.error) _last.error(data);
@@ -204,20 +204,20 @@ function Request(){
         })
     }
 
-    this.native = function(url, complite, error, post_data, params){
+    this.native = function(url, complete, error, post_data, params){
         var add_params = {};
 
         if(params){
             add_params = params;
         }
 
-        var reguest = {
+        var call = {
             url: url,
-            complite: complite,
+            complete: complete,
             error: error
         }
 
-        _calls.push(reguest)
+        _calls.push(call)
 
         var data = {
             url: url,
@@ -225,10 +225,10 @@ function Request(){
             post_data: post_data,
 
             complite: function(data){
-                if(_calls.indexOf(reguest) !== -1 && reguest.complite) reguest.complite(data);
+                if(_calls.indexOf(call) !== -1 && call.complete) call.complete(data);
             },
             error: function(data){
-                if(_calls.indexOf(reguest) !== -1 && reguest.error) reguest.error(data);
+                if(_calls.indexOf(call) !== -1 && call.error) call.error(data);
             },
 
             end: function(){
@@ -253,8 +253,8 @@ function Request(){
      * @param {Object} custom 
      */
     this.again = function(custom){
-        if(custom || last_reguest){
-            go(custom || last_reguest);
+        if(custom || last_request){
+            go(custom || last_request);
         }
     }
 
@@ -263,7 +263,7 @@ function Request(){
      * @returns Object
      */
     this.latest = function(){
-        return last_reguest;
+        return last_request;
     }
 
     /**
@@ -333,7 +333,10 @@ function Request(){
         let error     = false
         let hasmirror = Manifest.cub_mirrors.find(m=>params.url.indexOf(m) >= 0)
         
-        if(hasmirror && params.url.indexOf('api/checker') == -1){
+        if(hasmirror){
+            // Заменияем протокол на живой урл
+            params.url = params.url.replace('http://' + Manifest.cub_domain, Manifest.cub_alive).replace('https://' + Manifest.cub_domain, Manifest.cub_alive)
+
             let mirrors = Manifest.cub_mirrors
             
             Arrays.remove(mirrors, hasmirror)
@@ -446,7 +449,11 @@ function Request(){
             }
 
             // Если есть старый кеш отдаем его
-            if(cache_old) return secuses(cache_old, true)
+            if(cache_old){
+                console.log('Request','use old cache for:', params.url, 'key:', cacheName(params))
+
+                return success(cache_old, true)
+            }
 
             jqXHR.decode_error = errorDecode(jqXHR, exception);
             jqXHR.decode_code  = errorCode(jqXHR);
@@ -477,12 +484,12 @@ function Request(){
 
         listener.send('go');
 
-        last_reguest = params;
+        last_request = params;
 
         if(params.start) params.start();
 
-        let secuses = function(data, fromcache = false){
-            function sendSecuses(send_data){
+        let success = function(data, fromcache = false){
+            function sendSuccess(send_data){
                 if(params.cache && params.cache.life > 0 && !fromcache) {
                     cacheSet(params, send_data)
                 }
@@ -494,7 +501,7 @@ function Request(){
                         params.complite(send_data)
                     }
                     catch(e){
-                        console.error('Request','complite error:', e.message + "\n\n" + e.stack)
+                        console.error('Request','complete error:', e.message + "\n\n" + e.stack)
 
                         Noty.show('Error: ' + (e.error || e).message + '<br><br>' + (e.error && e.error.stack ? e.error.stack : e.stack || '').split("\n").join('<br>'))
                     }
@@ -510,10 +517,10 @@ function Request(){
             Lampa.Listener.send('request_secuses', {params, data, abort: ()=>{
                 abort_called = true
 
-                return sendSecuses
+                return sendSuccess
             }})
 
-            if(!abort_called) sendSecuses(data)
+            if(!abort_called) sendSuccess(data)
         }
 
         let datatype = params.dataType || 'json';
@@ -526,7 +533,7 @@ function Request(){
             crossDomain: true,
             success: (data) => {
                 if(datatype == 'json' && !data) error({status: 500})
-                else secuses(data);
+                else success(data);
             },
             error: error,
             beforeSend: (xhr) => {
@@ -579,7 +586,7 @@ function Request(){
             cache_old = old
 
             if(cached){
-                secuses(cached, true)
+                success(cached, true)
             }
             else{
                 $.ajax(data);
@@ -620,11 +627,11 @@ function Request(){
 
         listener.send('go');
 
-        last_reguest = params;
+        last_request = params;
 
         if(params.start) params.start();
 
-        var secuses = function(data){
+        var success = function(data){
             Lampa.Listener.send('request_secuses', {params, data});
 
             if(params.before_complite) params.before_complite(data);
@@ -634,7 +641,7 @@ function Request(){
                     params.complite(data);
                 }
                 catch(e){
-                    console.error('Request','complite error:', e.message + "\n\n" + e.stack);
+                    console.error('Request','complete error:', e.message + "\n\n" + e.stack);
 
                     Noty.show('Error: ' + (e.error || e).message + '<br><br>' + (e.error && e.error.stack ? e.error.stack : e.stack || '').split("\n").join('<br>'))
                 }
@@ -647,7 +654,7 @@ function Request(){
 
         params.timeout = !Mirrors.connected() && params.url.indexOf(Manifest.cub_domain) >= 0 ? 3000 : params.timeout || need.timeout;
 
-        Android.httpReq(params, {complite: secuses, error: error})
+        Android.httpReq(params, {complite: success, error: error})
 
         need.timeout  = 1000 * 30;
     }

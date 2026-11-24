@@ -5,7 +5,7 @@ import Lang from './lang'
 function init(){
     if(!window.lampa_settings.iptv) return
     
-    let components = ['tmdb','plugins']
+    let components = ['tmdb','plugins','content_rows']
     let titles     = ['card_interfice_type']
     let params = ['light_version', 'card_interfice_type', 'card_interfice_reactions', 'player_timecode', 'pages_save_total', 'device_name', 'playlist_next', 'background_type', 'card_views_type', 'hide_outside_the_screen', 'card_interfice_cover', 'card_interfice_poster', 'start_page', 'source', 'card_quality', 'card_episodes', 'player']
     
@@ -65,8 +65,8 @@ function init(){
 
     Lampa.Settings.listener.follow('open', window.iptvClearSettingsFunction)
 
-    Utils.putScript([Utils.protocol() + Manifest.cub_domain + '/plugin/iptv'], function () {
-        console.log('IPTV', 'load from lampa','complite')
+    Utils.putScriptOfMirrors([Utils.protocol() + Manifest.cub_domain + '/plugin/iptv'], function () {
+        console.log('IPTV', 'load from lampa','complete')
     }, function () {
         console.log('IPTV', 'load from lampa','error')
     }, function () {

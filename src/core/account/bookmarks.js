@@ -25,6 +25,48 @@ let tracker_data  = {
 
 let update_timer
 
+let push_queue   = []
+let push_running = false
+
+function processQueue(){
+    if(push_running || push_queue.length === 0) return
+
+    push_running = true
+
+    let {method, type, card} = push_queue.shift()
+
+    let find = bookmarks.find((elem)=>elem.card_id == card.id && elem.type == type)
+
+    Api.load('bookmarks/' + method, {}, {
+        type: type,
+        data: JSON.stringify(Utils.clearCard(Arrays.clone(card))),
+        card_id: card.id,
+        id: find ? find.id : 0
+    }).then(()=>{
+        clearTimeout(update_timer)
+
+        update_timer = setTimeout(()=>{
+            update(()=>{
+                Socket.send('bookmarks',{})
+
+                Lampa.Listener.send('state:changed', {
+                    target: 'favorite',
+                    reason: 'update',
+                    method,
+                    card,
+                    type
+                })
+            })
+        }, 500)
+    }).catch(()=>{
+        console.warn('Account', 'bookmarks ' + method + ' fail')
+    }).finally(()=>{
+        push_running = false
+
+        processQueue()
+    })
+}
+
 /**
  * Запуск
  * @return {void}
@@ -81,35 +123,9 @@ function init(){
  */
 function push(method, type, card){
     if(Permit.sync){
-        let find = bookmarks.find((elem)=>elem.card_id == card.id && elem.type == type)
+        push_queue.push({method, type, card})
 
-        Api.load('bookmarks/' + method, {}, {
-            type: type,
-            data: JSON.stringify(Utils.clearCard(Arrays.clone(card))),
-            card_id: card.id,
-            id: find ? find.id : 0
-        }).then(()=>{
-            clearTimeout(update_timer)
-
-            // Видимо сразу несколько изменений могут прийти, поэтому ждем секунду перед обновлением
-            update_timer = setTimeout(()=>{
-                update(()=>{
-                    // Оповещаем другие устройства о изменении закладок
-                    Socket.send('bookmarks',{}) 
-
-                    // Глобальное оповещение об изменении закладок для обновления карточек
-                    Lampa.Listener.send('state:changed', {
-                        target: 'favorite',
-                        reason: 'update',
-                        method,
-                        card,
-                        type
-                    })
-                })
-            },1000)
-        }).catch(()=>{
-            console.warn('Account', 'bookmarks ' + method + ' fail')
-        })
+        processQueue()
     }
 }
 
@@ -255,7 +271,19 @@ function update(call){
                                 if(change.data){
                                     change.data = Utils.clearCard(Arrays.decodeJson(change.data, {}))
 
-                                    Arrays.insert(bookmarks, 0, change)
+                                    // Если закладка уже есть, то обновляем время и двигаем ее в начало, иначе просто добавляем
+                                    // !!! Надеюсь это избавит от бага с дублированием закладок при обновлении
+                                    let find = bookmarks.find((book)=>book.id == change.entity_id)
+
+                                    if(find){
+                                        find.time = change.updated_at
+
+                                        Arrays.remove(bookmarks, find)
+                                        Arrays.insert(bookmarks, 0, find)
+                                    }
+                                    else{
+                                        Arrays.insert(bookmarks, 0, change)
+                                    }
                                 }
                             }
                             else if(change.action == 'clear'){
@@ -439,7 +467,7 @@ function sync(callback){
     let file
     
     try{
-        file = new File([localStorage.getItem('favorite') || '{}'], "bookmarks.json", {
+        file = new File([Storage.value('favorite', '{}')], "bookmarks.json", {
             type: "text/plain",
         })
     }
@@ -449,7 +477,7 @@ function sync(callback){
 
     if(!file){
         try{
-            file = new Blob([localStorage.getItem('favorite') || '{}'], {type: 'text/plain'})
+            file = new Blob([Storage.value('favorite', '{}')], {type: 'text/plain'})
             file.lastModifiedDate = new Date()
         }
         catch(e){

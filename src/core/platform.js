@@ -7,6 +7,7 @@ import Template from '../interaction/template'
 import Controller from './controller'
 import Lang from './lang'
 import Bell from '../interaction/bell'
+import Arrays from '../utils/arrays'
 
 function init(){
     let agent = navigator.userAgent.toLowerCase()
@@ -83,10 +84,12 @@ function get(){
 
 /**
  * Если это платформа
- * @param {String} need - какая нужна? tizen, webos, android, orsay
+ * @param {String|Array} need - какая нужна? tizen, webos, android, netcast, orsay, apple, apple_tv, nw, electron
  * @returns Boolean
  */
 function is(need){
+    if(Arrays.isArray(need)) return need.indexOf(get()) >= 0
+
     return get() == need
 }
 
@@ -191,6 +194,11 @@ function screen(need){
     return false
 }
 
+/**
+ * Установка приложения
+ * @param {String} what - что устанавливать? apk
+ * @returns void
+ */
 function install(what){
     if($('.modal').length) Modal.close()
 
@@ -237,10 +245,22 @@ function install(what){
     }
 }
 
+/**
+ * Версия Chrome для Android TV
+ * @returns Number
+ */
 function chromeVersion(){
     let raw = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)
 
     return raw ? parseInt(raw[2], 10) : 0
+}
+
+/**
+ * Версия виджета для TV
+ * @returns Number
+ */
+function widgetVersion(){
+    return window.widget_version || 0
 }
 
 export default {
@@ -255,5 +275,6 @@ export default {
     screen,
     install,
     macOS,
-    chromeVersion
+    chromeVersion,
+    widgetVersion
 }

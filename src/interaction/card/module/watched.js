@@ -56,7 +56,7 @@ export default {
                 let Draw = ()=>{
                     episodes.forEach(ep=>{
                         let hash = Utils.hash([ep.season_number, ep.season_number > 10 ? ':' : '',ep.episode_number,data.original_title].join(''))
-                        let view = Timeline.view(hash)
+                        let view = Timeline.view(hash, Timeline.link(data, ep.season_number, ep.episode_number))
 
                         if(view.percent) viewed = {ep, view}
                     })
@@ -72,7 +72,7 @@ export default {
                                     episode_number: filed.episode,
                                     name: Lang.translate('full_episode') + ' ' + filed.episode,
                                 },
-                                view: Timeline.view(Utils.hash([filed.season, filed.season > 10 ? ':' : '',filed.episode,data.original_title].join('')))
+                                view: Timeline.view(Utils.hash([filed.season, filed.season > 10 ? ':' : '',filed.episode,data.original_title].join('')), Timeline.link(data, filed.season, filed.episode))
                             }
                         }
                     }
@@ -101,8 +101,11 @@ export default {
                     }
 
                     if(viewed){
-                        let soon = []
-                        let next = episodes.slice(episodes.indexOf(viewed.ep)).filter(ep=>ep.air_date).filter(ep=>{
+                        let soon  = []
+                        let start = episodes.indexOf(viewed.ep)
+
+                        // Эпизод из истории или из таймлайна не входит в список последнего сезона
+                        let next = (start >= 0 ? episodes.slice(start) : []).filter(ep=>ep.air_date).filter(ep=>{
                             let date = Utils.parseToDate(ep.air_date).getTime()
 
                             if(date > Date.now()) soon.push(ep)

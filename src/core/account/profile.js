@@ -64,6 +64,13 @@ function update(){
     }
     else profile_icon.append(Template.js('icon_profile'))
 }
+/**
+ * Возвращает иконку профиля
+ * @returns {string}
+ */
+function icon(){
+    return Permit.token ? Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + (Permit.account.profile.icon || 'l_1') + '.png' : ''
+}
 
 /**
  * Проверяет наличие профиля, если его нет - загружает
@@ -72,24 +79,27 @@ function update(){
  */
 function check(call){
     if(Permit.access){
-        let account = Permit.account
+        Api.load('profiles/all', {attempts: 3}).then((result)=>{
+            let account = Permit.account
 
-        if(account.profile && account.profile.id) call()
-        else{
-            Api.load('profiles/all', {attempts: 3}).then((result)=>{
+            if(account.profile.id){
+                let active = result.profiles.find(p=>p.id == account.profile.id)
+
+                if(active) account.profile = active
+            }
+            else{
                 let main = result.profiles.find(p=>p.main)
 
-                if(main){
-                    if(!account.profile) account.profile = {}
+                if(main) account.profile = main
+            }
 
-                    account.profile = main
+            Storage.set('account', account, true)
 
-                    Storage.set('account', account, true)
-                }
+            // Переключение на детский источник
+            Listener.send('profile_check', {profile: account.profile})
 
-                call()
-            }).catch(call)
-        }
+            call()
+        }).catch(call)
     }
     else{
         Storage.set('account_user','', true)
@@ -129,16 +139,59 @@ function select(callback){
 
                     elem.title    = elem.name
                     elem.template = 'selectbox_icon'
-                    elem.icon     = icon || Template.string('icon_profile')
+                    elem.icon     = Permit.isCub
+                        ? '<img src="' + Utils.protocol() + Manifest.cub_domain + '/img/profiles/' + elem.icon + '.png" class="size-medium" />'
+                        : (icon || Template.string('icon_profile'))
                     elem.clone    = clone[index]
-                    elem.subtitle = elem.main ? Lang.translate('account_profile_main') : elem.child ? Lang.translate('account_profile_child') : ''
+                    elem.subtitle = elem.main ? Lang.translate('account_profile_main') : elem.child ? Lang.translate('account_profile_child') + ' ' + '(' + Lang.translate('filter_rating_to') + ' ' + (elem.age || 12) + ')' : ''
 
                     elem.selected = account.profile.id == elem.id
 
                     return elem
                 })
 
-            
+                
+                let select  = []
+                let maximum = Lampa.Account.hasPremium() ? 8 : 3
+
+                let additional = {
+                    title: Lang.translate('account_profile_add'),
+                    template: 'selectbox_icon',
+                    icon: '<svg class="size-medium"><use xlink:href="#sprite-plus"></use></svg>',
+                    ghost: list.length >= maximum,
+                    onSelect: (a)=>{
+                        callback && callback()
+
+                        if(a.ghost){
+                            Noty.show(Lang.translate('account_profile_limited').replace('{count}', maximum))
+                        }
+                        else{
+                            let controller = Controller.enabled().name
+
+                            Input.edit({
+                                title: Lampa.Lang.translate('account_profile_name'),
+                                value: '',
+                                free: true,
+                                nosave: true,
+                                nomic: true
+                            },(name)=>{
+                                Controller.toggle(controller)
+
+                                if(name){
+                                    name = Utils.capitalizeFirstLetter(name)
+
+                                    Api.load('profiles/create', {}, {name}).then((result)=>{
+                                        Bell.push({text: Lang.translate('account_profile_created')})
+                                    }).catch((e)=>{
+                                        Noty.show(Lang.translate(e.decode_code == 200 ? 'account_profile_limited' : 'network_error').replace('{count}', maximum))
+                                    })
+                                }
+                            })
+                        }
+                    }
+                }
+                
+                select = [additional].concat(list)
 
                 Select.show({
                     title: Lang.translate('account_profiles'),
@@ -172,5 +225,6 @@ export default {
     init: Utils.onceInit(init),
     update,
     check,
-    select
+    select,
+    icon
 }

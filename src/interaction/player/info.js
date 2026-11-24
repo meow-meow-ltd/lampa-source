@@ -3,9 +3,11 @@ import Subscribe from '../../utils/subscribe'
 import Utils from '../../utils/utils'
 import Reguest from '../../utils/reguest'
 import Lang from '../../core/lang'
-import Storage from '../../core/storage/storage'
 import Torserver from '../torserver'
 import HeadBackward from '../head/backward'
+import Player from '../player'
+import Video from './video'
+import Panel from './panel'
 
 let html
 let listener = Subscribe()
@@ -17,18 +19,61 @@ let error, stat_timer
 function init(){
     html = Template.get('player_info')
 
-    html.find('.player-info__body').prepend(HeadBackward('Плеер'))
+    html.find('.player-info__body').prepend(HeadBackward(Lang.translate('settings_main_player')))
     
     elems = {
         name:  $('.player-info__name,.head-backward__title',html),
+        title: $('.player-info__title',html),
         size:  $('.value--size span',html),
         stat:  $('.value--stat span',html),
         speed: $('.value--speed span',html),
+        vname: $('.value--name',html),
         error: $('.player-info__error',html),
+        timeend: $('.player-info__time-end span',html),
         pieces:  $('.value--pieces',html)
     }
 
     Utils.time(html)
+
+    Video.listener.follow('videosize',(e)=>{
+        set('size', e)
+    })
+
+    Video.listener.follow('destroy',(e)=>{
+        set('bitrate', '')
+    })
+
+    Video.listener.follow('timeupdate', updateTimeEnd)
+
+    Video.listener.follow('error',(e)=>{
+        if(e.fatal) elems.size.text(Lang.translate('title_error')) 
+        else set('error', e.error)
+    })
+
+    Panel.listener.follow('visible',(e)=>{
+        toggle(e.status)
+
+        updateTimeEnd()
+    })
+
+    Player.listener.follow('start',(data)=>{
+        set('name', data.title)
+
+        if(Torserver.ip() && data.url.indexOf(Torserver.ip()) > -1) set('stat', data)
+    })
+
+    Player.listener.follow('destroy', destroy)
+}
+
+function updateTimeEnd(){
+    let video = Video.video()
+
+    if(Panel.visibleStatus() && video && video.duration){
+        elems.timeend.text(Lang.translate('player_time_end') + ' ' + Utils.parseTime(new Date(Date.now() + (video.duration - video.currentTime) * 1000)).time)
+    }
+    else{
+        elems.timeend.text('')
+    }
 }
 
 /**
@@ -37,7 +82,28 @@ function init(){
  * @param {string|{width,height}} value 
  */
 function set(need, value){
-    if(need == 'name') elems.name.html(value)
+    if(need == 'name') {
+        let name  = value
+        let work  = Player.playdata()
+        let head = ''
+
+        if(!work.iptv){
+            if(work.card) head = work.card.title || work.card.name
+            else if(Lampa.Activity.active().movie){
+                head = Lampa.Activity.active().movie.title || Lampa.Activity.active().movie.name
+            }
+
+            if(!head) head = name
+
+            elems.title.text(head).toggleClass('hide', Boolean(work.iptv))
+
+            elems.name.toggleClass('hide', Boolean(name == head)).toggleClass('hide', true)
+
+            elems.vname.toggleClass('hide', Boolean(name == head)).find('span').text(name)
+        }
+        else elems.title.text(name)
+        
+    }
     else if(need == 'size' && value.width && value.height) elems.size.text(value.width + 'x' + value.height)
     else if(need == 'error') {
         clearTimeout(error)
@@ -49,7 +115,7 @@ function set(need, value){
         },10000)
     }
     else if(need == 'stat') stat(value)
-    else if(need == 'bitrate') elems.stat.html(value)
+    else if(need == 'bitrate' && !stat_timer) elems.stat.html(value)
 }
 
 function pieces(cache){
@@ -88,9 +154,9 @@ function pieces(cache){
 
 /**
  * Показываем статистику по торренту
- * @param {string} url 
+ * @param {object} player_data 
  */
-function stat(url){
+function stat(player_data){
     let wait = 0
 
     elems.stat.text('- / - • - ' + Lang.translate('connected_seeds'))
@@ -108,9 +174,18 @@ function stat(url){
 
         network.timeout(2000)
 
-        network.silent(url.replace('&preload', '&stat').replace('&play', '&stat'), function (data) {
-            elems.stat.text((data.active_peers || 0) + ' / ' + (data.total_peers || 0) + ' • ' + (data.connected_seeders || 0) + ' ' + Lang.translate('connected_seeds'))
-            elems.speed.text(Utils.bytesToSize(data.download_speed ? data.download_speed * 8 : 0, true))
+        let url = ''
+
+        if(Torserver.gstWork()) url = Torserver.url() + '/gst/' + player_data.torrent_hash + '/heartbeat'
+        else                    url = player_data.url.replace('&preload', '&stat').replace('&play', '&stat')
+
+        network.silent(url, function (data) {
+            let torrent = data.Torrent || data
+
+            elems.stat.text((torrent.active_peers || 0) + ' / ' + (torrent.total_peers || 0) + ' • ' + (torrent.connected_seeders || 0) + ' ' + Lang.translate('connected_seeds'))
+            elems.speed.text(Utils.bytesToSize(torrent.download_speed ? torrent.download_speed * 8 : 0, true))
+
+            if(Torserver.gstWork()) return pieces(data)
 
             let hash = url.match(/link=(.*?)\&/)
 
@@ -129,7 +204,7 @@ function stat(url){
         })
     }
 
-    stat_timer = setInterval(update,2000)
+    stat_timer = setInterval(update, 2000)
 
     update()
 }
@@ -155,6 +230,9 @@ function destroy(){
     elems.speed.text('')
     elems.error.addClass('hide')
     elems.pieces.empty()
+    elems.vname.toggleClass('hide', true)
+    elems.name.toggleClass('hide', true)
+    elems.title.toggleClass('hide', false)
 
     clearTimeout(error)
     clearInterval(stat_timer)

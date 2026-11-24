@@ -69,6 +69,34 @@ export default {
       
             lang_choice_title: "Bun venit",
             lang_choice_subtitle: "Alegeți limba",
+        },
+        fr: {
+            code: 'fr',
+            name: 'Français',
+
+            lang_choice_title: 'Bienvenue',
+            lang_choice_subtitle: 'Choisissez votre langue',
+        },
+        pl: {
+            code: "pl",
+            name: "Polski",
+      
+            lang_choice_title: "Witamy",
+            lang_choice_subtitle: "Wybierz język",
+        },
+        lt: {
+            code: "lt",
+            name: "Lietuvių",
+
+            lang_choice_title: "Sveiki",
+            lang_choice_subtitle: "Pasirinkite kalbą",
+        },
+        es: {
+            code: 'es',
+            name: 'Español',
+
+            lang_choice_title: 'Bienvenido',
+            lang_choice_subtitle: 'Elige tu idioma',
         }
     }
 }

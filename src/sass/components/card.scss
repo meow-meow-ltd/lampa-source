@@ -11,7 +11,7 @@
         left: 0;
         height: 100%;
         width: 100%;
-        background-color: #3E3E3E;
+        background-color: $bg_light;
 
         &-broken{
             position: absolute;
@@ -20,7 +20,7 @@
             right: 1em;
             word-break: break-all;
             line-height: 1.4;
-            background: #3E3E3E;
+            background: $bg_light;
             bottom: 20%;
             color: #ffffff82;
             display: flex;
@@ -32,6 +32,17 @@
         margin-bottom: 1em;
         position: relative;
         padding-bottom: 150%;
+    }
+
+    &__filter{
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-size: contain;
+        mix-blend-mode: overlay;
+        border-radius: 1em;
     }
 
     &__title{
@@ -257,8 +268,36 @@
         align-items: flex-end;
     }
 
+    // Экран «Просмотры» (watch_history): дата просмотра и серия
+    &__history{
+        background: $bg_transparent;
+        padding: 0.4em 0.7em;
+        display: flex;
+        border-radius: 1em;
+        margin-bottom: 0.6em;
+        align-items: center;
+        line-height: 1.4;
+
+        &-date{
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        &-episode{
+            margin-left: auto;
+            padding-left: 0.8em;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+    }
+
+    &--history-removed{
+        opacity: 0.3;
+    }
+
     &__subscribe{
-        background: rgba(0,0,0,0.3);
+        background: $bg_transparent;
         padding: 0.4em 0.7em;
         display: flex;
         border-radius: 1em;

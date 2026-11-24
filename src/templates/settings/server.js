@@ -1,14 +1,14 @@
 import SETTINGS_KEYS from '../../utils/constants'
 
 let html = `<div>
-    <div class="settings-param selector is--android" data-type="toggle" data-name="internal_torrclient" data-children="internal_torrclient">
+    <div class="settings-param selector is--android" data-type="select" data-name="internal_torrclient" data-children="internal_torrclient">
         <div class="settings-param__name">#{settings_server_client}</div>
         <div class="settings-param__value"></div>
         <div class="settings-param__descr">#{settings_server_client_descr}</div>
     </div>
 
     <div data-parent="internal_torrclient">
-        <div class="settings-param selector" data-type="toggle" data-name="torrserver_use_link">
+        <div class="settings-param selector" data-type="select" data-name="torrserver_use_link">
             <div class="settings-param__name">#{settings_server_link}</div>
             <div class="settings-param__value"></div>
         </div>
@@ -42,6 +42,18 @@ let html = `<div>
             <div class="settings-param__name">#{settings_server_preload}</div>
             <div class="settings-param__value"></div>
             <div class="settings-param__descr">#{settings_server_preload_descr}</div>
+        </div>
+
+        <div class="settings-param selector" data-type="toggle" data-name="torrserver_gts">
+            <div class="settings-param__name">#{settings_server_gts}</div>
+            <div class="settings-param__value"></div>
+            <div class="settings-param__descr">#{settings_server_gts_descr}</div>
+        </div>
+
+		<div class="settings-param selector" data-type="toggle" data-name="torrserver_tracktimecode">
+            <div class="settings-param__name">#{settings_server_tracktimecode}</div>
+            <div class="settings-param__value"></div>
+            <div class="settings-param__descr">#{settings_server_tracktimecode_descr}</div>
         </div>
 
         <div class="settings-param-title"><span>#{settings_server_auth}</span></div>

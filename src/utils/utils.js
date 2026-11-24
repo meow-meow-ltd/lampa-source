@@ -174,10 +174,16 @@ function time(html){
         let elem_moth  = where.querySelector('.time--moth')
         let elem_full  = where.querySelector('.time--full')
 
+        let listenTimeOffset = (e)=>{
+            if(e.name == 'time_offset') this.tik()
+        }
+
+        Lampa.Storage.listener.follow('change', listenTimeOffset)
+
         this.tik = function(){
             let date = new Date(),
                 time = date.getTime(),
-                ofst = parseInt((localStorage.getItem('time_offset') == null ? 'n0' : localStorage.getItem('time_offset')).replace('n',''))
+                ofst = parseInt(Storage.value('time_offset', 'n0').replace('n',''))
 
                 date = new Date(time + (ofst * 1000 * 60 * 60))
 
@@ -200,6 +206,8 @@ function time(html){
 
         this.destroy = function(){
             Timer.remove(this.tik)
+
+            Lampa.Storage.listener.remove('change', listenTimeOffset)
         }
 
         Timer.add(60000, this.tik, true)
@@ -236,6 +244,7 @@ function parseTime(str){
 
     return {
         time: current_time,
+        time_full: [time[0],time[1],time[2]].join(':'),
         week: days[current_week],
         day: current_day,
         mouth: months[date.getMonth()],
@@ -293,7 +302,7 @@ function rewriteIfHTTPS(u){
 }
 
 function fixProtocolLink(u){
-    return rewriteIfHTTPS((localStorage.getItem('protocol') || 'https') + '://' + u.replace(/^(http:\/\/|https:\/\/)/, ''))
+    return rewriteIfHTTPS(Storage.value('protocol', 'https') + '://' + u.replace(/^(http:\/\/|https:\/\/)/, ''))
 }
 
 function fixMirrorLink(u){
@@ -305,6 +314,8 @@ function fixMirrorLink(u){
 }
 
 function shortText(fullStr, strLen, separator){
+    fullStr = fullStr + ''
+
     if (fullStr.length <= strLen) return fullStr;
     
     separator = separator || '...';
@@ -320,7 +331,9 @@ function shortText(fullStr, strLen, separator){
 }
 
 function protocol(){
-    return window.location.protocol == 'https:' ? 'https://' : (localStorage.getItem('protocol') || 'https') + '://'
+    let prot = Storage.get('protocol') || 'https'
+
+    return window.location.protocol == 'https:' ? 'https://' : prot + '://'
 }
 
 
@@ -328,12 +341,12 @@ function addUrlComponent (url, params){
     return url + (/\?/.test(url) ? '&' : '?') + params;
 }
 
-function putScript(items, complite, error, success, show_logs){
+function putScript(items, complete, error, success, show_logs){
     let p = 0;
     let l = typeof show_logs !== 'undefined' ? show_logs : true;
     
     function next(){
-        if(p == items.length) return complite()
+        if(p == items.length) return complete()
 
         let u = items[p]
 
@@ -375,14 +388,14 @@ function putScript(items, complite, error, success, show_logs){
     next()
 }
 
-function putScriptAsync(items, complite, error, success, show_logs){
+function putScriptAsync(items, complete, error, success, show_logs){
     let p = 0
     let l = typeof show_logs !== 'undefined' ? show_logs : true;
 
     function check(){
         p++
 
-        if(p == items.length && complite) complite()
+        if(p == items.length && complete) complete()
     }
 
     function put(u){
@@ -427,11 +440,72 @@ function putScriptAsync(items, complite, error, success, show_logs){
     for(let i = 0; i < items.length; i++) put(items[i])
 }
 
-function putStyle(items, complite, error){
+function putScriptOfMirrors(items, complete, error, success, show_logs){
+    let mirrors = (Lampa.Manifest && Lampa.Manifest.cub_mirrors) || []
+    let l = typeof show_logs !== 'undefined' ? show_logs : true
+    let p = 0
+
+    function nextItem(){
+        if(p >= items.length){
+            if(complete) complete()
+            return
+        }
+
+        let url = items[p++]
+
+        if(!url){ nextItem(); return }
+
+        let current = mirrors.find(m => url.includes(m))
+
+        if(!current || !mirrors.length){
+            putScriptAsync([url], nextItem,
+                (u) => { if(error) error(u) },
+                (u) => { if(success) success(u) },
+                show_logs
+            )
+            return
+        }
+
+        let idx = mirrors.indexOf(current)
+        let ordered = mirrors.slice(idx).concat(mirrors.slice(0, idx))
+        let i = 0
+        let loaded = false
+
+        function tryMirror(){
+            if(i >= ordered.length){
+                if(l) console.warn('Script', 'all mirrors failed:', url)
+                if(error) error(url)
+                nextItem()
+                return
+            }
+
+            let mirror = ordered[i++]
+            let tryUrl = url.replace(current, mirror)
+
+            if(l) console.log('Script', 'mirror try [' + i + '/' + ordered.length + ']:', tryUrl)
+
+            putScriptAsync([tryUrl], null,
+                () => { if(!loaded) tryMirror() },
+                (u) => {
+                    loaded = true
+                    if(success) success(u)
+                    nextItem()
+                },
+                show_logs
+            )
+        }
+
+        tryMirror()
+    }
+
+    nextItem()
+}
+
+function putStyle(items, complete, error){
     var p = 0;
 
     function next(){
-        if(p >= items.length) return complite()
+        if(p >= items.length) return complete()
 
         var u = items[p]
         
@@ -670,6 +744,19 @@ function decodePG(pg){
     return pg
 }
 
+/** 
+ * Проверяет можно ли показывать контент с указанным возрастным ограничением
+ * @param {string|integer} pg возрастное ограничение (например, '16+', 'R', 18)
+ * @param {integer} limit возраст профиля (по умолчанию 12)
+ * @returns {boolean}
+ */
+function canWatchChildren(pg, limit){
+    let age = (pg + '').indexOf('+') >= 0 ? parseInt(pg.replace('+','')) : 18
+    let age_limit = limit || 12
+
+    return Lampa.Account.Permit.child ? age_limit >= age : true
+}
+
 function trigger(element, event_name){
     let event = document.createEvent('Event')
 
@@ -730,7 +817,7 @@ function inputDisplay(value){
 }
 
 function filterCardsByType(items, need){
-    let filtred = []
+    let filtered = []
 
     let genres = (card, id)=>{
         let gen = card.genres || card.genre_ids
@@ -745,52 +832,55 @@ function filterCardsByType(items, need){
         return false
     }
 
-    if(need == 'movies')    filtred = items.filter(a=>!a.name && !genres(a, 16))
-    if(need == 'tv')        filtred = items.filter(a=>a.name && !genres(a, 16))
-    if(need == 'multmovie') filtred = items.filter(a=>!a.name && genres(a, 16))
-    if(need == 'multtv')    filtred = items.filter(a=>a.name && genres(a, 16))
+    if(need == 'movies')    filtered = items.filter(a=>!a.name && !genres(a, 16))
+    if(need == 'tv')        filtered = items.filter(a=>a.name && !genres(a, 16))
+    if(need == 'multmovie') filtered = items.filter(a=>!a.name && genres(a, 16))
+    if(need == 'multtv')    filtered = items.filter(a=>a.name && genres(a, 16))
     
 
-    return filtred
+    return filtered
 }
 
-function buildUrl(baseUrl, path, queryParams) {
-    // Убираем все, что идет после хоста (например, /ts)
-    var host = baseUrl.split('/').slice(0, 3).join('/');
+ function buildUrl(baseUrl, path, queryParams) {
+        // Убираем /ts на конце, если он есть (для совместимости с TorrServer)
+        var cleanUrl = baseUrl.replace(/\/ts\/?$/, '');
 
-    // Убираем лишние "/" в начале и конце пути
-    var url = host + '/' + path.replace(/^\/+/, '');
+        // Убираем лишние "/" в начале и конце пути, сохраняя subpath
+        var url = cleanUrl.replace(/\/+$/, '') + '/' + path.replace(/^\/+/, '');
 
-    // Формируем строку запроса из массива объектов
-    var queryString = queryParams
-        .map(function(param) {
-            return encodeURIComponent(param.name) + '=' + encodeURIComponent(param.value);
-        })
-        .join('&');
+        // Формируем строку запроса из массива объектов
+        var queryString = queryParams
+            .map(function(param) {
+                return encodeURIComponent(param.name) + '=' + encodeURIComponent(param.value);
+            })
+            .join('&');
 
-    // Добавляем строку запроса к URL, если есть параметры
-    return url + (queryString ? '?' + queryString : '');
-}
+        // Добавляем строку запроса к URL, если есть параметры
+        return url + (queryString ? '?' + queryString : '');
+    }
 
 function simpleMarkdownParser(input) {
-    // Обработка заголовков #
-    input = input.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-    input = input.replace(/^#+ (.*$)/gim, '<h4>$1</h4>');
+    // Удаление заголовков с маркером списка
+    input = input.replace(/\* #{1,} /gim, '* ');
 
-    // Обработка жирного текста **текст**
+    // Жирный текст первым, чтобы ** не мешал распознаванию * как маркера списка
     input = input.replace(/\*\*(.*?)\*\*/gim, '<b>$1</b>');
 
-    // Обработка списков * пункт
-    input = input.replace(/^\* (.*$)/gim, '<li>$1</li>');
+    // Маркер списка + заголовок: "* #### текст" или "    *   #### текст"
+    input = input.replace(/^[ \t]*\*[ \t]*#{1,6}[ \t]+(.*$)/gim, '<h4>$1</h4>');
 
-    // Обработка курсивного текста *текст*
+    // Обычные заголовки
+    input = input.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    input = input.replace(/^#{2,}[ \t]+(.*$)/gim, '<h4>$1</h4>');
+
+    // Маркированные списки с любым отступом и любым кол-вом пробелов после *
+    input = input.replace(/^[ \t]*\*[ \t]+(.*$)/gim, '<p>$1</p>');
+
+    // Курсивный текст *текст* (после списков, чтобы одиночный * маркера не захватывался)
     input = input.replace(/\*(.*?)\*/gim, '<i>$1</i>');
 
-    // Оборачивание текста в <p>, если он не является частью других тегов
-    input = input.replace(/^(?!<h1>|<h4>|<li>|<b>|<i>)(.+)$/gim, '<p>$1</p>');
-
-    input = input.replace(/<li>/gim, '<p>');
-    input = input.replace(/<\/li>/gim, '</p>');
+    // Оборачивание незатронутых строк в <p>
+    input = input.replace(/^(?!<h1>|<h4>|<p>|<b>|<i>)(.+)$/gim, '<p>$1</p>');
 
     // Удаление лишних переносов строк
     input = input.replace(/\n/gim, '');
@@ -831,6 +921,21 @@ function clearCard(card){
     return new_card
 }
 
+function resolutionToQuality(width, height, symbol){
+    let quality = 0
+
+    if(width >= 3830) quality = 2160
+    else if(width >= 2550) quality = 1440
+    else if(width >= 1910) quality = 1080
+    else if(width >= 1014) quality = 720
+    else if(width >= 710)  quality = 480
+    else if(width >= 630)  quality = 360
+
+    if(symbol) quality += symbol
+
+    return quality
+}
+
 function qualityToText(quality){
     let text = ''
 
@@ -851,7 +956,7 @@ function qualityToText(quality){
             text = 'SD'
             break
         case '360p':
-            text = 'SD'
+            text = 'LD'
             break
         default:
             text = quality
@@ -1051,6 +1156,7 @@ export default {
     sizeToBytes,
     putScript,
     putScriptAsync,
+    putScriptOfMirrors,
     putStyle,
     clearTitle,
     cardImgBackground,
@@ -1085,6 +1191,7 @@ export default {
     callWaiting,
     clearCard,
     qualityToText,
+    resolutionToQuality,
     createInstance,
     extendParams,
     extendItemsParams,
@@ -1094,5 +1201,6 @@ export default {
     randomMinMax,
     addSource,
     clearHtmlTags,
-    splitEpisodesIntoSeasons
+    splitEpisodesIntoSeasons,
+    canWatchChildren
 }

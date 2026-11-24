@@ -20,6 +20,65 @@ function Feed(object){
     let html    = document.createElement('div')
     let feed    = []
     let last
+
+    function enrichTmdbItem(element, oncomplete){
+        let card = element.data || {}
+
+        if(!card.imdb_id) return oncomplete(element)
+
+        let method = 'find/' + card.imdb_id + '?external_source=imdb_id'
+
+        Api.sources.tmdb.get(method, {}, (data)=>{
+            let movie = data.movie_results && data.movie_results[0]
+            let tv    = data.tv_results && data.tv_results[0]
+            let tmdb  = element.card_type == 'tv' ? tv || movie : movie || tv
+
+            if(tmdb){
+                tmdb.source = 'tmdb'
+                tmdb.imdb_id = card.imdb_id
+                tmdb.imdb_rating = card.imdb_rating
+                tmdb.kp_rating = card.kp_rating
+                tmdb.release_quality = card.release_quality
+                tmdb.countries = card.countries
+                tmdb.episode = card.episode
+
+                element.data = tmdb
+                element.card_id = tmdb.id
+                element.card_type = tmdb.name || tmdb.first_air_date ? 'tv' : 'movie'
+            }
+
+            oncomplete(element)
+        }, ()=>{
+            oncomplete(element)
+        }, {life: 60 * 24 * 7})
+    }
+
+    function enrichTmdbFeed(items, oncomplete){
+        let result = []
+        let index = 0
+        let active = 0
+        let limit = 4
+
+        function next(){
+            if(index >= items.length && active == 0) return oncomplete(result)
+
+            while(active < limit && index < items.length){
+                let position = index
+                let element = items[index]
+
+                index++
+                active++
+
+                enrichTmdbItem(element, (updated)=>{
+                    result[position] = updated
+                    active--
+                    next()
+                })
+            }
+        }
+
+        next()
+    }
     
     
     this.create = function(){
@@ -81,12 +140,12 @@ function Feed(object){
                 now: Lampa.Lang.translate('title_new')
             }
 
-            let sity = element.data.countries || []
+            let countries = element.data.countries || []
             let year = ((element.data.release_date || element.data.first_air_date) + '').slice(0,4)
             let info = []
             let tags = []
 
-            info.push(year + (sity.length ? ' - ' + sity.slice(0,2).join(', ') : ''))
+            info.push(year + (countries.length ? ' - ' + countries.slice(0,2).join(', ') : ''))
 
             if(element.data.imdb_rating && parseFloat(element.data.imdb_rating) > 0){
                 info.push('IMDB ' + element.data.imdb_rating)
@@ -152,34 +211,36 @@ function Feed(object){
     }
 
     this.build = function(data){
-        feed = data.result
+        enrichTmdbFeed(data.result || [], (result)=>{
+            feed = result
 
-        html.addClass('feed')
+            html.addClass('feed')
 
-        let head = Template.js('feed_head')
+            let head = Template.js('feed_head')
 
-        head.find('.feed-head__title').text(Lang.translate('lampa_movie_title'))
-        head.find('.feed-head__info').html(Lang.translate('lampa_movie_descr'))
+            head.find('.feed-head__title').text(Lang.translate('lampa_movie_title'))
+            head.find('.feed-head__info').html(Lang.translate('lampa_movie_descr'))
 
-        head.on('hover:focus',scroll.update.bind(scroll, head))
+            head.on('hover:focus',scroll.update.bind(scroll, head))
 
-        scroll.minus()
+            scroll.minus()
 
-        scroll.onWheel = (step)=>{
-            Navigator.move(step > 0 ? 'down' : 'up')
-        }
+            scroll.onWheel = (step)=>{
+                Navigator.move(step > 0 ? 'down' : 'up')
+            }
 
-        scroll.onEnd = this.next.bind(this)
+            scroll.onEnd = this.next.bind(this)
 
-        scroll.append(head)
+            scroll.append(head)
 
-        this.append(feed.slice(0,20))
+            this.append(feed.slice(0,20))
 
-        html.append(scroll.render(true))
+            html.append(scroll.render(true))
 
-        this.activity.loader(false)
+            this.activity.loader(false)
 
-        this.activity.toggle()
+            this.activity.toggle()
+        })
     }
 
 

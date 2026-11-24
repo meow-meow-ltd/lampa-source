@@ -1,5 +1,5 @@
 import Template from '../template'
-import Keybord from '../keyboard/keyboard'
+import Keyboard from '../keyboard/keyboard'
 import Controller from '../../core/controller'
 import Select from '../select'
 import Storage from '../../core/storage/storage'
@@ -8,7 +8,7 @@ import Noty from '../noty'
 import Lang from '../../core/lang'
 import Utils from '../../utils/utils'
 
-let html,keyboard,input,input_value = ''
+let html,keyboard,input,opened_from,input_value = ''
 
 /**
  * Заустить редактор
@@ -16,6 +16,8 @@ let html,keyboard,input,input_value = ''
  * @param {function} call 
  */
 function edit(params, call){
+    opened_from = Controller.enabled().name
+
     html = Template.get('settings_input')
 
     input = html.find('.settings-input__input')
@@ -30,7 +32,7 @@ function edit(params, call){
         return params.password ? v.replace(/./g,'*') : v
     }
 
-    keyboard = new Keybord(params)
+    keyboard = new Keyboard(params)
 
     keyboard.listener.follow('change',(event)=>{
         input_value = event.value.trim()
@@ -153,7 +155,10 @@ function edit(params, call){
 function back(){
     destroy()
 
-    Controller.toggle('settings_component')
+    // Ввод из открытого окна (например, модалки плагина) возвращает фокус в окно, а не в настройки
+    let top = Controller.windowTop()
+
+    Controller.toggle(top && top.name == opened_from ? top.name : 'settings_component')
 }
 
 /**

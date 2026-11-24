@@ -11,7 +11,7 @@ export default {
     onCreate: function(){
         let videos = this.data.videos
 
-        if(videos && videos.results.length && !window.lampa_settings.disable_features.trailers && !Platform.is('tizen')){
+        if(!this.data.movie.adult && videos && videos.results.length && !window.lampa_settings.disable_features.trailers){
             this.html.find('.view--trailer').on('hover:enter',()=>{
                 let items = []
 
@@ -28,7 +28,8 @@ export default {
                         url: element.url || 'https://www.youtube.com/watch?v=' + element.key,
                         youtube: typeof element.youtube !== 'undefined' ? element.youtube : true,
                         icon: '<img class="size-youtube" src="'+(element.icon || 'https://img.youtube.com/vi/'+element.key+'/default.jpg')+'" />',
-                        template: 'selectbox_icon'
+                        template: 'selectbox_icon',
+                        thumbnail: element.icon || 'https://img.youtube.com/vi/'+element.key+'/default.jpg'
                     })
                 })
 
@@ -54,7 +55,7 @@ export default {
                 al_lang = al_lang.concat(en_lang)
 
                 Select.show({
-                    title: Lang.translate('title_trailers'),
+                    title: 'YouTube - ' + Lang.translate('title_trailers'),
                     items: al_lang,
                     onSelect: (a)=>{
                         this.toggle()
@@ -62,36 +63,36 @@ export default {
                         if(Platform.is('android') && Storage.field('player_launch_trailers') == 'youtube' && a.youtube){
                             Android.openYoutube(a.id)
                         }
-                        else if(Platform.is('webos') && window.location.protocol == 'file:'){
-                            if (window.webOS && webOS.service) {
-                                webOS.service.request(
-                                    'luna://com.webos.applicationManager',
-                                    {
-                                        method: 'launch',
-                                        parameters: {
-                                            id: 'youtube.leanback.v4',
-                                            params: {
-                                                contentTarget: 'v=' + a.id
-                                            }
-                                        },
-                                        onSuccess: function (inResponse) {
-                                            console.log('YouTube','WebOS launched YouTube app successfully')
-                                        },
-                                        onFailure: function (inError) {
-                                            if(parseInt(inError.errorCode) == 100){
-                                                Lampa.Noty.show(Lang.translate('player_youtube_no_support'))
-                                            }
-                                            else{
-                                                Lampa.Noty.show(Lang.translate('network_error') + ' ' + "[" + inError.errorCode + "] " + inError.errorText)
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                            else{
-                                Lampa.Noty.show(Lang.translate('network_error') + ' ' + "[WebOS service not available]")
-                            }
-                        }
+                        // else if(Platform.is('webos') && window.location.protocol == 'file:'){
+                        //     if (window.webOS && webOS.service) {
+                        //         webOS.service.request(
+                        //             'luna://com.webos.applicationManager',
+                        //             {
+                        //                 method: 'launch',
+                        //                 parameters: {
+                        //                     id: 'youtube.leanback.v4',
+                        //                     params: {
+                        //                         contentTarget: 'v=' + a.id
+                        //                     }
+                        //                 },
+                        //                 onSuccess: function (inResponse) {
+                        //                     console.log('YouTube','WebOS launched YouTube app successfully')
+                        //                 },
+                        //                 onFailure: function (inError) {
+                        //                     if(parseInt(inError.errorCode) == 100){
+                        //                         Lampa.Noty.show(Lang.translate('player_youtube_no_support'))
+                        //                     }
+                        //                     else{
+                        //                         Lampa.Noty.show(Lang.translate('network_error') + ' ' + "[" + inError.errorCode + "] " + inError.errorText)
+                        //                     }
+                        //                 }
+                        //             }
+                        //         )
+                        //     }
+                        //     else{
+                        //         Lampa.Noty.show(Lang.translate('network_error') + ' ' + "[WebOS service not available]")
+                        //     }
+                        // }
                         else{
                             let playlist = al_lang.filter(v=>!v.separator)
 

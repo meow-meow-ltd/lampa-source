@@ -104,7 +104,7 @@ function cdnmovies(component, _object){
 
         filter()
 
-        append(filtred())
+        append(filtered())
 
         component.saveChoice(choice)
     }
@@ -124,7 +124,7 @@ function cdnmovies(component, _object){
 
         filter()
 
-        append(filtred())
+        append(filtered())
 
         component.saveChoice(choice)
     }
@@ -159,7 +159,7 @@ function cdnmovies(component, _object){
 
                     filter()
 
-                    append(filtred())
+                    append(filtered())
                 }
                 else component.emptyForQuery(select_title)
             }
@@ -256,8 +256,8 @@ function cdnmovies(component, _object){
      * Отфильтровать файлы
      * @returns array
      */
-    function filtred(){
-        let filtred = []
+    function filtered(){
+        let filtered = []
 
         let filter_data = Lampa.Storage.get('online_filter', '{}')
 
@@ -267,7 +267,7 @@ function cdnmovies(component, _object){
                     t.folder.forEach(function (se) {
                         se.folder.forEach(function (eps) {
                             if (eps.title == filter_items.voice[choice.voice]) {
-                                filtred.push({
+                                filtered.push({
                                     file: eps.file,
                                     episode: parseInt(se.title.match(/\d+/)),
                                     season: parseInt(t.title.match(/\d+/)),
@@ -282,7 +282,7 @@ function cdnmovies(component, _object){
         } 
         else {
             extract.forEach(function (data) {
-                filtred.push({
+                filtered.push({
                     file: data.file,
                     title: data.title,
                     quality: '360p ~ 1080p',
@@ -297,7 +297,7 @@ function cdnmovies(component, _object){
             })
         }
 
-        return filtred
+        return filtered
     }
 
     /**
@@ -315,7 +315,7 @@ function cdnmovies(component, _object){
             element.info = element.season ? ' / ' + Lampa.Utils.shortText(filter_items.voice[choice.voice], 50) : ''
 
             let hash = Lampa.Utils.hash(element.season ? [element.season,element.episode,object.movie.original_title].join('') : object.movie.original_title)
-            let view = Lampa.Timeline.view(hash)
+            let view = Lampa.Timeline.view(hash, Lampa.Timeline.link(object.movie, element.season, element.episode))
             let item = Lampa.Template.get('online',element)
 
             let hash_file = Lampa.Utils.hash(element.season ? [element.season,element.episode,object.movie.original_title,filter_items.voice[choice.voice]].join('') : object.movie.original_title + element.title)

@@ -17,6 +17,20 @@ let html = `<div>
         <div class="settings-param__descr">#{settings_player_torrent_type_descr}</div>
     </div>
 
+    <div class="settings-param selector is--android" data-type="toggle" data-name="player_torrent_gst_warning">
+        <div class="settings-param__name">#{settings_player_torrent_gst_warning}</div>
+        <div class="settings-param__value"></div>
+        <div class="settings-param__descr">#{settings_player_torrent_gst_warning_descr}</div>
+    </div>
+
+    <div class="is--infuse hide" data-infuse-launch>
+        <div class="settings-param selector" data-type="select" data-name="infuse_launch_mode">
+            <div class="settings-param__name">#{settings_infuse_launch_mode}</div>
+            <div class="settings-param__value"></div>
+            <div class="settings-param__descr">#{settings_infuse_launch_mode_descr}</div>
+        </div>
+    </div>
+
     <div class="settings-param selector is--android" data-type="select" data-name="player_launch_trailers">
         <div class="settings-param__name">#{settings_player_launch_trailers}</div>
         <div class="settings-param__value"></div>
@@ -28,10 +42,19 @@ let html = `<div>
         <div class="settings-param__descr">#{settings_player_reset_descr}</div>
     </div>
 
-    <div class="settings-param selector is--nw" data-type="input" data-name="player_nw_path" placeholder="">
+    <div class="settings-param selector is--nw" data-type="input" data-name="player_nw_path" placeholder="" data-children="player_type">
         <div class="settings-param__name">#{settings_player_path}</div>
         <div class="settings-param__value"></div>
         <div class="settings-param__descr">#{settings_player_path_descr}</div>
+    </div>
+    
+    <div data-parent="player_type" data-visible-value-in="vlc, mpc, mpv" class="hide is--nw">
+        <div class="settings-param-title"><span>#{settings_player_external_header}</span></div>
+    
+        <div class="settings-param selector" data-type="toggle" data-name="player_external_fullscreen">
+            <div class="settings-param__name">#{settings_player_external_fullscreen}</div>
+            <div class="settings-param__value"></div>
+        </div>
     </div>
 
     <div class="settings-param selector" data-type="toggle" data-name="player_normalization">
@@ -52,13 +75,13 @@ let html = `<div>
         <div class="settings-param__descr">#{settings_player_timecode_descr}</div>
     </div>
 
-    <div class="settings-param selector" data-type="toggle" data-name="player_scale_method">
+    <div class="settings-param selector" data-type="select" data-name="player_scale_method">
         <div class="settings-param__name">#{settings_player_scale}</div>
         <div class="settings-param__value"></div>
         <div class="settings-param__descr">#{settings_player_scale_descr}</div>
     </div>
 
-    <div class="settings-param selector" data-type="toggle" data-name="player_hls_method">
+    <div class="settings-param selector" data-type="select" data-name="player_hls_method">
         <div class="settings-param__name">#{settings_player_hls_title}</div>
         <div class="settings-param__value"></div>
         <div class="settings-param__descr">#{settings_player_hls_descr}</div>
@@ -77,6 +100,36 @@ let html = `<div>
             <div class="settings-param__name">#{settings_player_subs_use}</div>
             <div class="settings-param__value"></div>
             <div class="settings-param__descr">#{settings_player_subs_use_descr}</div>
+        </div>
+
+        <div class="settings-param selector" data-type="select" data-name="subtitles_lang">
+            <div class="settings-param__name">#{settings_player_subs_lang}</div>
+            <div class="settings-param__value"></div>
+            <div class="settings-param__descr">#{settings_player_subs_lang_descr}</div>
+        </div>
+
+        <div class="settings-param selector" data-type="select" data-name="subtitles_source">
+            <div class="settings-param__name">#{settings_player_subs_source}</div>
+            <div class="settings-param__value"></div>
+            <div class="settings-param__descr">#{settings_player_subs_source_descr}</div>
+        </div>
+
+        <div class="settings-param selector" data-type="select" data-name="subtitles_ass_mode">
+            <div class="settings-param__name">#{settings_player_subs_ass_mode}</div>
+            <div class="settings-param__value"></div>
+            <div class="settings-param__descr">#{settings_player_subs_ass_mode_descr}</div>
+        </div>
+
+        <div class="settings-param selector" data-type="toggle" data-name="subtitles_ass_fonts">
+            <div class="settings-param__name">#{settings_player_subs_ass_fonts}</div>
+            <div class="settings-param__value"></div>
+            <div class="settings-param__descr">#{settings_player_subs_ass_fonts_descr}</div>
+        </div>
+
+        <div class="settings-param selector" data-type="toggle" data-name="subtitles_ass_readable">
+            <div class="settings-param__name">#{settings_player_subs_ass_readable}</div>
+            <div class="settings-param__value"></div>
+            <div class="settings-param__descr">#{settings_player_subs_ass_readable_descr}</div>
         </div>
     </div>
 

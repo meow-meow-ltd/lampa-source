@@ -59,8 +59,8 @@ class Notice{
 
         let html       = $('<div></div>')
         let tabs       = []
-        let viever     = this.classes[this.display]
-        let items      = viever.items()
+        let viewer     = this.classes[this.display]
+        let items      = viewer.items()
         let navigation = $('<div class="navigation-tabs"></div>')
         
         for(let name in this.classes){
@@ -94,88 +94,97 @@ class Notice{
         html.append(navigation)
         
         items.forEach(element => {
-            let item = Template.get('notice_card',{})
-            let icon = element.poster || element.icon || element.img
+            try{
+                let item = Template.get('notice_card',{})
+                let icon = element.poster || element.card?.poster_path || element.icon || element.img
 
-            let author_data = {}
-            let author_html
+                let author_data = {}
+                let author_html
 
-            item.addClass('image--' + (element.poster ? 'poster' : element.icon ? 'icon' : element.img ? 'img' : 'none'))
+                item.addClass('image--' + (element.poster ? 'poster' : element.icon ? 'icon' : element.img ? 'img' : 'none'))
 
-            item.find('.notice__title').html(translate(element.title))
-            item.find('.notice__descr').html(translate(element.text))
-            item.find('.notice__time').html(Utils.parseTime(element.time).short)
+                item.find('.notice__title').html(translate(element.title))
+                item.find('.notice__descr').html(translate(element.text))
+                item.find('.notice__time').html(Utils.parseTime(element.time).short)
 
-            if(element.labels) item.find('.notice__descr').append($('<div class="notice__footer">'+element.labels.map(label=>'<div>' + translate(label) + '</div>').join(' ')+'</div>'))
+                if(element.labels) item.find('.notice__descr').append($('<div class="notice__footer">'+element.labels.map(label=>'<div>' + translate(label) + '</div>').join(' ')+'</div>'))
 
-            if(element.author){
-                author_data = translate(element.author)
-                author_html = $(`<div class="notice__author">
-                    <div class="notice__author-img">
-                        <img />
-                    </div>
-                    <div class="notice__author-body">
-                        <div class="notice__author-name"></div>
-                        <div class="notice__author-text"></div>
-                    </div>
-                </div>`)
+                if(element.author){
+                    // author бывает {name, img, text} или по языкам {ru: {name, img, text}, ...}
+                    author_data = (element.author.name || element.author.img || element.author.text) ? element.author : translate(element.author) || {}
+                    author_html = $(`<div class="notice__author">
+                        <div class="notice__author-img">
+                            <img />
+                        </div>
+                        <div class="notice__author-body">
+                            <div class="notice__author-name"></div>
+                            <div class="notice__author-text"></div>
+                        </div>
+                    </div>`)
 
-                author_html.find('.notice__author-name').html(author_data.name)
-                author_html.find('.notice__author-text').html(author_data.text)
+                    author_html.find('.notice__author-name').html(author_data.name)
+                    author_html.find('.notice__author-text').html(author_data.text)
 
-                item.find('.notice__body').append(author_html)
+                    item.find('.notice__body').append(author_html)
+                }
+
+                item.on('hover:enter',()=>{
+                    if(element.card){
+                        this.close()
+
+                        Activity.push({
+                            url: '',
+                            component: 'full',
+                            id: element.card.id,
+                            method: element.method || (element.card.number_of_seasons || element.card.seasons ? 'tv' : 'movie'),
+                            card: element.card,
+                            source: element.card.source || (Lang.selected(['ru', 'uk', 'be']) ? 'cub' : '')
+                        })
+                    }
+                    else this.listener.send('select',{display: element.display || this.display, element})
+                }).on('visible',()=>{
+                    if(icon){
+                        if(Arrays.isObject(icon)) icon = icon[Lampa.Storage.get('tmdb_lang')] || element.card?.poster_path
+
+                        if(icon && icon.indexOf('http') == -1) icon = TMDB.image('t/p/w300/'+icon)
+
+                        let img_icon   = item.find('.notice__left img')[0] || {}
+
+                        img_icon.onload  = ()=>{
+                            item.addClass('image--loaded')
+                        }
+
+                        img_icon.onerror = ()=>{
+                            img_icon.src = './img/img_broken.svg'
+                        }
+
+                        img_icon.src = icon ? Utils.fixProtocolLink(icon) : './img/img_broken.svg'
+                    }
+
+                    if(element.author){
+                        let img_author = item.find('.notice__author img')[0] || {}
+
+                        img_author.onload  = ()=>{
+                            item.addClass('image-author--loaded')
+                        }
+
+                        img_author.onerror = ()=>{
+                            img_author.src = './img/img_broken.svg'
+                        }
+
+                        img_author.src = author_data.img ? Utils.fixProtocolLink(author_data.img.indexOf('http') >= 0 ? author_data.img : TMDB.image('t/p/w200/'+author_data.img)) : './img/img_broken.svg'
+                    }
+                })
+
+                html.append(item)
             }
-
-            item.on('hover:enter',()=>{
-                if(element.card){
-                    this.close()
-
-                    Activity.push({
-                        url: '',
-                        component: 'full',
-                        id: element.card.id,
-                        method: element.card.number_of_seasons || element.card.seasons ? 'tv' : 'movie',
-                        card: element.card,
-                        source: Lang.selected(['ru', 'uk', 'be']) ? 'cub' : ''
-                    })
-                }
-                else this.listener.send('select',{display: element.display || this.display, element})
-            }).on('visible',()=>{
-                if(icon){
-                    icon = translate(icon)
-
-                    if(icon.indexOf('http') == -1) icon = TMDB.image('t/p/w300/'+icon)
-
-                    let img_icon   = item.find('.notice__left img')[0] || {}
-                    let img_author = item.find('.notice__author img')[0] || {}
-
-                    img_icon.onload  = ()=>{
-                        item.addClass('image--loaded')
-                    }
-                
-                    img_icon.onerror = ()=>{
-                        img_icon.src = './img/img_broken.svg'
-                    }
-
-                    img_author.onload  = ()=>{
-                        item.addClass('image-author--loaded')
-                    }
-                
-                    img_author.onerror = ()=>{
-                        img_author.src = './img/img_broken.svg'
-                    }
-
-                    img_icon.src = Utils.fixProtocolLink(icon)
-
-                    if(element.author) img_author.src = Utils.fixProtocolLink(author_data.img.indexOf('http') >= 0 ? author_data.img : TMDB.image('t/p/w200/'+author_data.img))
-                }
-            })
-
-            html.append(item)
+            catch(e){
+                console.error('Notice', 'render error', e, element)
+            }
         })
 
         if(!items.length){
-            let empty = viever.empty()
+            let empty = viewer.empty()
 
             if(typeof empty == 'string'){
                 let wrap = $('<div class="about"></div>')
@@ -186,7 +195,7 @@ class Notice{
             else html.append(empty)
         }
 
-        viever.viewed()
+        viewer.viewed()
 
         this.listener.send('viewed',{display: this.display})
 

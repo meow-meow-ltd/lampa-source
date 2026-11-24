@@ -39,6 +39,11 @@ function Filter(params = {}){
             title: Lang.translate('filter_set_name'),
             query: ''
         })
+		
+		search.push({
+            title: Lang.translate('global_search'),
+            global_search: true
+        })
 
         if(earlier){
             search.push({
@@ -138,18 +143,31 @@ function Filter(params = {}){
             items: search,
             onBack: this.onBack,
             onSelect: (a)=>{
+				if(a.global_search){
+                     new Search({
+                         input: params.search || '',
+                         onSearch: (new_query)=>{
+                            this.onSearch(new_query, {
+                                global: true
+                            })
+                         },
+                         onBack: this.onBack
+                     })
+                     return
+                }
+				
                 if(!a.query){
                     new Search({
                         input: params.search,
                         onSearch: (new_query)=>{
-                            let earliers = Storage.get('user_clarifys','{}')
+                            let clarifications = Storage.get('user_clarifys','{}')
 
-                            if(!earliers[params.movie.id]) earliers[params.movie.id] = []
+                            if(!clarifications[params.movie.id]) clarifications[params.movie.id] = []
 
-                            if(earliers[params.movie.id].indexOf(new_query) == -1){
-                                earliers[params.movie.id].push(new_query)
+                            if(clarifications[params.movie.id].indexOf(new_query) == -1){
+                                clarifications[params.movie.id].push(new_query)
 
-                                Storage.set('user_clarifys',earliers)
+                                Storage.set('user_clarifys',clarifications)
                             }
 
                             this.onSearch(new_query)

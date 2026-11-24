@@ -5,9 +5,9 @@ import Api from '../../core/api/api'
 import Arrays from '../../utils/arrays'
 import Storage from '../../core/storage/storage'
 import Lang from '../../core/lang'
-import Event from '../../utils/event'
 import Emit from '../../utils/emit'
 import TMDB from '../../core/api/sources/tmdb'
+import Permit from '../../core/account/permit'
 
 import Options from './start/options'
 import Torrents from './start/torrents'
@@ -25,7 +25,6 @@ class Start extends Emit {
 
         this.data  = data
         this.card  = data.movie
-        this.event = new Event()
 
         Arrays.extend(this.card,{
             title: this.card.name,
@@ -34,7 +33,8 @@ class Start extends Emit {
             img: this.card.poster_path ? Api.img(this.card.poster_path, Storage.field('poster_size')).replace(/\/w\d{1,4}/,'/w500') : './img/img_broken.svg'
         })
 
-        this.use(Torrents)
+        Utils.canWatchChildren(TMDB.parsePG(data.movie), Permit.profile.age) && this.use(Torrents)
+
         this.use(Options)
         this.use(Subscribed)
         this.use(Trailers)
@@ -54,8 +54,8 @@ class Start extends Emit {
         let seasons     = Utils.countSeasons(this.card)
         let tmdb_rating = parseFloat((this.card.vote_average || 0) +'').toFixed(1)
 
-        let relise  = (this.card.release_date || this.card.first_air_date || '') + ''
-        let year    = relise ? relise.slice(0,4) : ''
+        let release  = (this.card.release_date || this.card.first_air_date || '') + ''
+        let year    = release ? release.slice(0,4) : ''
         let quality = !this.card.first_air_date ? this.card.release_quality || this.card.quality : false
         let pg      = TMDB.parsePG(this.card)
         let head    = []
@@ -79,6 +79,7 @@ class Start extends Emit {
         !window.lampa_settings.torrents_use && this.html.find('.view--torrent').addClass('hide')
 
         this.card.name && this.html.find('.full-start-new__poster').addClass('card--tv').append('<div class="card__type">TV</div>')
+        this.card.adult && this.html.find('.full-start-new__poster').addClass('card--adult').append('<div class="card__type">ADULT</div>')
 
         if(year){
             this.html.find('.tag--year').removeClass('hide').find('> div').text(year)
@@ -197,8 +198,6 @@ class Start extends Emit {
     }
 
     destroy(){
-        this.event.destroy()
-
         this.html.remove()
 
         this.emit('destroy')

@@ -36,6 +36,11 @@ import player_footer_card from '../templates/player/footer/card'
 import selectbox from '../templates/selectbox/box'
 import selectbox_item from '../templates/selectbox/item'
 import selectbox_icon from '../templates/selectbox/icon'
+import selectbox_friend from '../templates/selectbox/friend'
+import friend_profile from '../templates/friend/profile'
+import friend_feed from '../templates/friend/feed'
+import friend_recommend from '../templates/friend/recommend'
+import friend_recommend_item from '../templates/friend/recommend_item'
 import info from '../templates/info_old'
 import filter from '../templates/filter'
 import more from '../templates/more'
@@ -102,6 +107,7 @@ import extensions_item from '../templates/extensions/item'
 import extensions_recomend from '../templates/extensions/recomend'
 import extensions_info from '../templates/extensions/info'
 import extensions_theme from '../templates/extensions/theme'
+import extensions_store from '../templates/extensions/store'
 import extensions_screensaver from '../templates/extensions/screensaver'
 import iframe from '../templates/iframe'
 import account from '../templates/account'
@@ -117,21 +123,25 @@ import navigation_bar from '../templates/navigation_bar'
 import head_backward from '../templates/head_backward'
 import account_add_device from '../templates/account/add_device_old'
 import account_add_device_new from '../templates/account/add_device'
+import account_device_code from '../templates/account/device_code'
 import feed_item from '../templates/feed/item'
 import feed_head from '../templates/feed/head'
 import feed_episode from '../templates/feed/episode'
 import register from '../templates/register'
 import speedtest from '../templates/speedtest'
-import ad_bot from '../templates/ad/bot'
 import ad_video_block from '../templates/ad/video'
 import discuss_rules from '../templates/discuss_rules'
 import bookmarks_folder from '../templates/bookmarks_folder'
 import ai_search_animation from '../templates/ai/search_animation'
+import ai_agent from '../templates/ai/agent'
 import plugins_rules from '../templates/plugins_rule'
 import remote_helper from '../templates/remote_helper'
 import watched_history from '../templates/watched_history'
 import icons_sprite from '../templates/icons/sprite'
+import warning from '../templates/warning'
+import reaction_ask from '../templates/player/reaction'
 import pin_gate from '../templates/pin_gate'
+
 
 let templates = {
     head,
@@ -232,6 +242,7 @@ let templates = {
     extensions_recomend,
     extensions_info,
     extensions_theme,
+    extensions_store,
     extensions_screensaver,
     iframe,
     account,
@@ -241,6 +252,11 @@ let templates = {
     cub_premium,
     cub_premium_modal,
     selectbox_icon,
+    selectbox_friend,
+    friend_profile,
+    friend_feed,
+    friend_recommend,
+    friend_recommend_item,
     explorer,
     explorer_button_back,
     https,
@@ -248,6 +264,7 @@ let templates = {
     head_backward,
     account_add_device,
     account_add_device_new,
+    account_device_code,
     feed_item,
     feed_head,
     feed_episode,
@@ -256,15 +273,17 @@ let templates = {
     season_episode,
     season_episode_rate,
     season_info,
-    ad_bot,
     ad_video_block,
     discuss_rules,
     bookmarks_folder,
     ai_search_animation,
+    ai_agent,
     plugins_rules,
     remote_helper,
     watched_history,
     icons_sprite,
+    warning,
+    reaction_ask,
     pin_gate
 }
 

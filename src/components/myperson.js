@@ -56,11 +56,13 @@ function component(object){
             next = loadPart
 
             TMDB.get('person/popular',{},(json)=>{
+                if(!json.results) return loadPart(this.build.bind(this), this.empty.bind(this))
+
                 json.results.sort((a,b)=>a.popularity - b.popularity)
 
-                let filtred = json.results.filter(p=>p.known_for_department && p.known_for)
+                let filtered = json.results.filter(p=>p.known_for_department && p.known_for)
 
-                let persons = filtred.filter(p=>(p.known_for_department || '').toLowerCase() == 'acting' && p.known_for.length).slice(0,10)
+                let persons = filtered.filter(p=>(p.known_for_department || '').toLowerCase() == 'acting' && p.known_for.length).slice(0,10)
 
                 persons.forEach((person_data,index)=>{
                     let event = (call_inner)=>{

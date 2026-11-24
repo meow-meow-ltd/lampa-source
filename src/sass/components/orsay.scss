@@ -110,15 +110,6 @@ body.platform--netcast {
     }
     
     .player-panel {
-        //фикс кнопок в плеере
-        .button {
-            > svg {
-                position: absolute;
-                width: 1.2em;
-                height: 1.2em;
-                display: flex;
-            }
-        }
         //фикс времени окончания
         &__timeend {
             position: absolute;
@@ -176,13 +167,6 @@ body.platform--netcast {
     .player-info{
         &__name{
             padding-right: 4em;
-        }
-        &__time{
-            position: absolute;
-            right: 0;
-        }
-        &__line{
-            position: relative;
         }
     }
 }   

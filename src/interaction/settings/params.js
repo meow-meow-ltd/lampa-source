@@ -7,6 +7,7 @@ import Controller from '../../core/controller'
 import Subscribe from '../../utils/subscribe'
 import Lang from '../../core/lang'
 import Manifest from '../../core/manifest'
+import filter_langs from '../../components/torrents/lang'
 import SETTINGS_KEYS from '../../utils/constants'
 
 let values   = {}
@@ -77,6 +78,7 @@ function init(){
         }, 'android')
 
         select('player_torrent', {
+            'inner': '#{settings_param_player_inner}',
             'android': 'Android'
         }, 'android')
 
@@ -105,6 +107,7 @@ function init(){
             'infuse': 'Infuse',
             'mpv': 'MPV',
             'nplayer': 'nPlayer',
+            'senplayer': 'SenPlayer',
             'tracyplayer': 'TracyPlayer',		
         },'inner')
 
@@ -114,6 +117,7 @@ function init(){
             'infuse': 'Infuse',
             'mpv': 'MPV',
             'nplayer': 'nPlayer',
+            'senplayer': 'SenPlayer',
             'tracyplayer': 'TracyPlayer',		
         },'inner')
 
@@ -123,6 +127,7 @@ function init(){
             'infuse': 'Infuse',
             'mpv': 'MPV',
             'nplayer': 'nPlayer',
+            'senplayer': 'SenPlayer',
             'tracyplayer': 'TracyPlayer',		
         },'inner')
     }
@@ -164,31 +169,37 @@ function init(){
     }
     else if(Platform.is('apple_tv')){
         select('player',{
+            'tvospro': '#{settings_param_player_inner_tvos} tvOS Pro',
             'tvos': '#{settings_param_player_inner_tvos} tvOS Universal',
             'tvosl': '#{settings_param_player_inner_tvos} tvOS Online',
             'tvosSelect': '#{settings_param_player_outside}',
             'vlc': 'VLC',
             'infuse': 'Infuse',
+            'senplayer': 'SenPlayer',
             'vidhub': 'Vidhub',
             'inner': '#{settings_param_player_inner}',
             'svplayer': 'SVPlayer'
         },'tvos')
 
         select('player_iptv',{
+            'tvospro': '#{settings_param_player_inner_tvos} tvOS Pro',
             'tvos': '#{settings_param_player_inner_tvos} tvOS Universal',
             'tvosl': '#{settings_param_player_inner_tvos} tvOS Online',
             'tvosSelect': '#{settings_param_player_outside}',
             'vlc': 'VLC',
             'infuse': 'Infuse',
+            'senplayer': 'SenPlayer',
             'vidhub': 'Vidhub',
             'inner': '#{settings_param_player_inner}',
             'svplayer': 'SVPlayer'
         },'inner')
 
         select('player_torrent',{
+            'tvospro': '#{settings_param_player_inner_tvos} tvOS Pro',
             'tvos': '#{settings_param_player_inner_tvos} tvOS Universal',
             'tvosSelect': '#{settings_param_player_outside}',
             'infuse': 'Infuse',
+            'senplayer': 'SenPlayer',
             'vidhub': 'Vidhub',
             'vlc': 'VLC',
             'inner': '#{settings_param_player_inner}',
@@ -252,6 +263,8 @@ function init(){
         'http': '#{settings_param_no}',
         'https': '#{settings_param_yes}',
     }, 'https')
+
+    trigger('request_caching', Platform.is('orsay') || Platform.is('netcast') ? false : true)
 }
 
 /**
@@ -317,7 +330,7 @@ function bind(elems, elems_html){
                 elem: elem,
                 name: name,
                 nomic: true,
-                value: elem.data('string') ? window.localStorage.getItem(name) || defaults[name] : Storage.get(name,defaults[name]) + ''
+                value: elem.data('string') ? Storage.value(name, defaults[name]) : Storage.get(name,defaults[name]) + ''
             },(new_value)=>{
                 Storage.set(name,new_value)
 
@@ -433,7 +446,7 @@ function displayAddList(elem){
 function update(elem,elems,elems_html){
     let name = elem.data('name')
 
-    let key = elem.data('string') ? window.localStorage.getItem(name) || defaults[name] : Storage.get(name, defaults[name] + '')
+    let key = elem.data('string') ? Storage.value(name, defaults[name]) : Storage.get(name, defaults[name] + '')
     let val = typeof values[name] == 'string' ? key : values[name][key] || values[name][defaults[name]]
     let plr = elem.attr('placeholder')
 
@@ -446,18 +459,49 @@ function update(elem,elems,elems_html){
     if(children){
         let parent = elems_html ? elems_html.find('[data-parent="'+children+'"]') : elems.filter('[data-parent="'+children+'"]')
         let value  = elem.data('children-value')
-        let visibl = value ? Storage.field(name) !== value : !Storage.field(name)
+        let hidden = value ? Storage.field(name) !== value : !Storage.field(name)
 
-        if(elem.data('children-reverse')) visibl = !visibl
+        if(elem.data('children-reverse')) hidden = !hidden
 
-        parent.toggleClass('hide',visibl)
+        parent.toggleClass('hide',hidden)
 
         parent.filter('[data-visible-value]').each(function(){
             $(this).toggleClass('hide', $(this).data('visible-value') !== key)
         })
 
+        parent.filter('[data-visible-value-in]').each(function() {
+            const valueStr = this.getAttribute('data-visible-value-in');
+            const valueList = valueStr.split(',').map(function (item) {
+                return item.trim().toLowerCase();
+            });
+
+            let isVisible = false;
+            for (let i = 0; i < valueList.length; i++) {
+                if (key.toLowerCase().indexOf(valueList[i]) !== -1) {
+                    isVisible = true;
+                    break;
+                }
+            }
+
+            $(this).toggleClass('hide', !isVisible);
+        });
+
         listener.send('update_scroll_position')
     }
+
+    updateInfuseLaunchVisibility(elems_html)
+}
+
+function isInfusePlayerSelected(){
+    return ['player', 'player_iptv', 'player_torrent'].some((name)=>{
+        return Storage.field(name) === 'infuse'
+    })
+}
+
+function updateInfuseLaunchVisibility(elems_html){
+    if(!elems_html || !elems_html.length) return
+
+    elems_html.find('[data-infuse-launch]').toggleClass('hide', !isInfusePlayerSelected())
 }
 
 /**
@@ -497,6 +541,12 @@ select('parser_torrent_type',{
     'torrserver': 'TorrServer'
 },'jackett')
 
+select('parser_use_link',{
+    'one': '#{settings_param_link_use_one}',
+    'two': '#{settings_param_link_use_two}',
+    'both': '#{settings_param_link_use_both}'
+},'one')
+
 select('jackett_interview',{
     'all': '#{settings_param_jackett_interview_all}',
     'healthy': '#{settings_param_jackett_interview_healthy}',
@@ -535,11 +585,35 @@ select('torrserver_use_link',{
     'two': '#{settings_param_link_use_two}'
 },'one')
 
+select('torrserver_search_type',{
+    'rutor': '#{settings_param_torrserver_search_rutor}',
+    'torznab': '#{settings_param_torrserver_search_torznab}',
+    'both': '#{settings_param_torrserver_search_both}'
+},'both')
+
 select('subtitles_size',{
     'small': '#{settings_param_subtitles_size_small}',
     'normal': '#{settings_param_subtitles_size_normal}',
     'large': '#{settings_param_subtitles_size_bigger}',
 },'normal')
+
+select('subtitles_lang', filter_langs.reduce((result, lang)=>{
+    result[lang.code] = lang.title
+
+    return result
+}, {'auto': '#{settings_param_subtitles_lang_auto}'}),'auto')
+
+select('subtitles_source',{
+    'torserver': '#{settings_param_subtitles_source_torserver}',
+    'legacy': '#{settings_param_subtitles_source_legacy}',
+},'torserver')
+
+select('subtitles_ass_mode',{
+    'auto': '#{settings_param_subtitles_ass_mode_auto}',
+    'full': '#{settings_param_subtitles_ass_mode_full}',
+    'simple': '#{settings_param_subtitles_ass_mode_simple}',
+    'text': '#{settings_param_subtitles_ass_mode_text}',
+},'auto')
 
 select('screensaver_time',{
     '1': '1',
@@ -556,7 +630,9 @@ select('parse_lang',{
 select('parse_timeout',{
     '15': '15',
     '30': '30',
-    '60': '60'
+    '60': '60',
+    '90': '90',
+    '120': '120'
 },'15')
 
 select('player_rewind',{
@@ -575,6 +651,12 @@ select('player_timecode',{
     'ask': '#{settings_param_player_timecode_ask}',
 },'continue')
 
+select('infuse_launch_mode', {
+    'ask': '#{settings_infuse_launch_ask}',
+    'play': '#{settings_infuse_launch_play}',
+    'save_and_play': '#{settings_infuse_launch_save_and_play}',
+}, 'play')
+
 select('player_scale_method',{
     'transform': 'Transform',
     'calculate': '#{settings_param_player_scale_method}',
@@ -588,7 +670,7 @@ select('player_hls_method',{
 
 select('source',{
     'tmdb': 'TMDB',
-    'cub': 'CUB',
+    'cub': 'CUB'
 },'tmdb')
 
 select('start_page', {
@@ -687,10 +769,13 @@ trigger('animation',true)
 trigger('background',true)
 trigger('torrserver_savedb',false)
 trigger('torrserver_preload', true)
+trigger('player_torrent_gst_warning', true)
 trigger('parser_use',false)
 trigger('cloud_use',false)
 trigger('account_use',false)
 trigger('torrserver_auth',false)
+trigger('torrserver_gts', false)
+trigger('torrserver_tracktimecode', false)
 trigger('mask',true)
 trigger('playlist_next',true)
 trigger('internal_torrclient', true)
@@ -699,9 +784,12 @@ trigger('subtitles_backdrop', false)
 trigger('screensaver', true)
 trigger('proxy_tmdb', true)
 trigger('proxy_tmdb_auto', true)
+trigger('tmdb_only_released', false)
 trigger('proxy_other', true)
 trigger('parse_in_search', false)
 trigger('subtitles_start', false)
+trigger('subtitles_ass_fonts', true)
+trigger('subtitles_ass_readable', true)
 trigger('helper', true)
 trigger('light_version', false)
 trigger('player_normalization', false)
@@ -715,18 +803,21 @@ trigger('card_interfice_cover', true)
 trigger('card_interfice_reactions', true)
 trigger('cache_images', false)
 trigger('interface_sound_play', false)
-trigger('request_caching', true)
 trigger('menu_always', false)
-
-
+trigger('player_external_fullscreen', true)
+trigger('adult_content_view', false)
 
 /**
  * Добовляем поля
  */
 select(SETTINGS_KEYS.JACKETT_URL,'','')
 select('jackett_key','','')
+select('jackett_url_two','','')
+select('jackett_key_two','','')
 select('prowlarr_url','','');
 select('prowlarr_key','','');
+select('prowlarr_url_two','','');
+select('prowlarr_key_two','','');
 select(SETTINGS_KEYS.TORRSERVER_URL,'','')
 select('torrserver_url_two','','')
 select('torrserver_login','','')
