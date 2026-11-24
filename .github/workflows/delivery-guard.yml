@@ -1,0 +1,42 @@
+name: delivery-guard
+
+# Guards the parts of this repo that exist ONLY in our fork (backend/, CI
+# workflows, Dockerfile, DELIVERY.md) plus the markers of the local-account
+# layer. A rebase onto 400+ upstream commits can silently drop them while
+# resolving conflicts — that already happened once (profiles stopped loading
+# because Permit.isLocal/profileId/provider guards were lost).
+#
+# Runs on every PR to main. Emergency override: add the label
+# `override:delivery-guard` to the PR (use only for intentional removals).
+
+on:
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delivery-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'override:delivery-guard') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout (full history — we diff against the base branch)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+
+      - name: Fork-layer guard
+        run: |
+          set -euo pipefail
+          chmod +x scripts/diff-vs-main.sh
+          BASE="origin/${{ github.base_ref || 'main' }}"
+          echo "base=$BASE head=$(git rev-parse --short HEAD)"
+          scripts/diff-vs-main.sh --strict "$BASE" HEAD
