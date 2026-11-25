@@ -12,6 +12,12 @@ description = "Lampa Rust server (P0 skeleton: composition root, /healthz, grace
 axum = "=0.8.9"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
+# Runtime queries only (no compile-time query macros, no build-time DB, no
+# migration runner). Default features (any/macros/json) are disabled. Note: sqlx
+# 0.8.6 declares sqlx-core's `migrate`/`offline` features unconditionally, so that
+# module is compiled but never invoked; `sqlx-macros` is not built and the server
+# never creates `_sqlx_migrations`. `sqlite` bundles SQLite (libsqlite3-sys).
+sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
 tokio = { version = "=1.54.1", features = ["full"] }
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }

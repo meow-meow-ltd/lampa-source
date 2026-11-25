@@ -1,0 +1,49 @@
+{
+  "index": 22,
+  "route": "GET /api/timeline/changelog",
+  "request": {
+    "method": "GET",
+    "path": "/api/timeline/changelog?since=0",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "profile": "1"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"version\":5,\"timelines\":{\"golden-hash-000a\":{\"duration\":6000,\"hash\":\"golden-hash-000a\",\"percent\":10,\"profile\":1,\"time\":600},\"golden-hash-000b\":{\"duration\":6000,\"hash\":\"golden-hash-000b\",\"percent\":25,\"profile\":1,\"time\":1500},\"golden-hash-000c\":{\"duration\":6000,\"hash\":\"golden-hash-000c\",\"percent\":40,\"profile\":1,\"time\":2400},\"golden-hash-000d\":{\"duration\":6000,\"hash\":\"golden-hash-000d\",\"percent\":55,\"profile\":1,\"time\":3300},\"golden-hash-000e\":{\"duration\":6000,\"hash\":\"golden-hash-000e\",\"percent\":70,\"profile\":1,\"time\":4200}}}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "version = MAX(timeline_events.id) for the profile"
+}

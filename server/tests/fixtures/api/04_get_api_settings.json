@@ -1,0 +1,49 @@
+{
+  "index": 4,
+  "route": "GET /api/settings",
+  "request": {
+    "method": "GET",
+    "path": "/api/settings",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*"
+    },
+    "cookies": [
+      "auth_token"
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "[{\"key\":\"admin_password\",\"value\":\"***\",\"visible\":0},{\"key\":\"admin_token\",\"value\":\"***\",\"visible\":0},{\"key\":\"torrserver_url\",\"value\":\"http://synthetic.invalid:9091\",\"visible\":1},{\"key\":\"jackett_url\",\"value\":\"http://synthetic.invalid:9117\",\"visible\":1},{\"key\":\"menu_interface\",\"value\":\"1\",\"visible\":1},{\"key\":\"menu_channels\",\"value\":\"1\",\"visible\":1},{\"key\":\"menu_player\",\"value\":\"1\",\"visible\":1},{\"key\":\"menu_parser\",\"value\":\"1\",\"visible\":1},{\"key\":\"menu_server\",\"value\":\"1\",\"visible\":1},{\"key\":\"menu_tmdb\",\"value\":\"1\",\"visible\":1},{\"key\":\"menu_plugins\",\"value\":\"1\",\"visible\":1},{\"key\":\"menu_parental_control\",\"value\":\"1\",\"visible\":1},{\"key\":\"menu_data\",\"value\":\"1\",\"visible\":1},{\"key\":\"menu_more\",\"value\":\"1\",\"visible\":1},{\"key\":\"head_search\",\"value\":\"1\",\"visible\":1},{\"key\":\"head_settings\",\"value\":\"1\",\"visible\":1},{\"key\":\"head_broadcast\",\"value\":\"1\",\"visible\":1},{\"key\":\"head_notice\",\"value\":\"1\",\"visible\":1},{\"key\":\"head_profile\",\"value\":\"1\",\"visible\":1},{\"key\":\"plugins\",\"value\":\"[]\",\"visible\":1}]"
+  },
+  "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+  "sanitization": [
+    "R1",
+    "R5",
+    "R8"
+  ],
+  "note": "legacy returns ALL settings; admin_password/admin_token masked (R5)"
+}

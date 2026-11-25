@@ -1,0 +1,54 @@
+{
+  "index": 26,
+  "route": "POST /admin/login",
+  "request": {
+    "method": "POST",
+    "path": "/admin/login",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "content-type": "application/json"
+    },
+    "cookies": [],
+    "body": {
+      "password": "***"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Set-Cookie",
+        "auth_token=<redacted>; Path=/; HttpOnly"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"success\":true}"
+  },
+  "auth": "no cookies",
+  "sanitization": [
+    "R1",
+    "R2",
+    "R6"
+  ],
+  "note": "sets auth_token cookie (value masked, R2)"
+}

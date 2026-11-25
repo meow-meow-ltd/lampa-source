@@ -1,0 +1,52 @@
+{
+  "index": 3,
+  "route": "POST /api/admin/device/action",
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/device/action",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "content-type": "application/json"
+    },
+    "cookies": [
+      "auth_token"
+    ],
+    "body": {
+      "id": 2,
+      "action": "unblock"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"success\":true}"
+  },
+  "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "unblocks the synthetic blocked device (id=2)"
+}

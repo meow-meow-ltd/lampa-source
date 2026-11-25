@@ -1,0 +1,48 @@
+{
+  "index": 9,
+  "route": "GET /api/profiles/all",
+  "request": {
+    "method": "GET",
+    "path": "/api/profiles/all",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"secuses\":true,\"profiles\":[{\"id\":1,\"name\":\"Main\",\"icon\":\"l_1\",\"main\":true,\"child\":false,\"sort\":1},{\"id\":2,\"name\":\"Kids\",\"icon\":\"l_2\",\"main\":false,\"child\":true,\"sort\":2},{\"id\":3,\"name\":\"Guest\",\"icon\":\"l_3\",\"main\":false,\"child\":false,\"sort\":3}]}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "3 synthetic profiles, Main first (is_main DESC, sort ASC, id ASC)"
+}

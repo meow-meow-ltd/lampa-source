@@ -1,11 +1,15 @@
 //! Composition root for the `lampa-server` binary.
 //!
-//! W0 scope only: environment configuration, tracing, the Axum router with
-//! `GET /healthz`, and graceful shutdown on SIGTERM/SIGINT. Database,
-//! auth, static/media/torrent services arrive in later waves.
+//! W0 scope: environment configuration, tracing, the SQLite layer with its
+//! fail-closed schema guard, the Axum router with `GET /healthz` + `GET /readyz`,
+//! and graceful shutdown on SIGTERM/SIGINT. Auth, static/media/torrent services
+//! arrive in later waves.
 
 mod config;
+mod db;
 mod http;
+mod profiles;
+mod settings;
 mod state;
 
 use std::error::Error;
@@ -19,7 +23,8 @@ use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
 use crate::config::Config;
-use crate::state::AppState;
+use crate::db::Database;
+use crate::state::{AppState, DbState};
 
 /// Upper bound for draining in-flight requests after a shutdown signal.
 /// Must stay at or below 10 seconds (P0 requirement).
@@ -33,12 +38,41 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::from_env()?;
     init_tracing(&config)?;
 
+    // Fail-closed DB startup: a failed guard never aborts liveness; it only makes
+    // `/readyz` return 503 (and logs one CRITICAL line). No writes happen.
+    let db_state = match Database::open(config.database_url(), config.allow_unknown_schema()).await
+    {
+        Ok(database) => {
+            let guard = database.guard_info();
+            info!(
+                schema_version = guard.schema_version.unwrap_or_default(),
+                allow_unknown_schema = guard.allow_unknown_schema,
+                journal_mode = db::guard::REQUIRED_JOURNAL_MODE,
+                "database ready (schema guard passed)"
+            );
+            DbState::Ready(database)
+        }
+        Err(error) => {
+            error!(
+                code = error.code(),
+                detail = error.detail().unwrap_or_default(),
+                "CRITICAL: database schema guard failed; serving fail-closed (/readyz returns 503)"
+            );
+            DbState::Unavailable(error)
+        }
+    };
+    if config.allow_unknown_schema() {
+        warn!("ALLOW_UNKNOWN_SCHEMA=1 is lab-only; it must not be set in production");
+    }
+    // Keep a handle for graceful shutdown; AppState clones share the same pool.
+    let database_for_shutdown = db_state.database().cloned();
+
     let bind_address = config.bind_address();
     let listener = TcpListener::bind(&bind_address).await?;
     let local_address = listener.local_addr()?;
     info!(address = %local_address, "lampa-server listening");
 
-    let app = http::router(AppState::new(config));
+    let app = http::router(AppState::new(config, db_state));
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let mut server = tokio::spawn(async move {
         axum::serve(listener, app)
@@ -68,6 +102,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "graceful shutdown timed out; aborting remaining connections"
             );
         }
+    }
+    if let Some(database) = database_for_shutdown {
+        database.close().await;
     }
     info!("shutdown complete");
     Ok(())

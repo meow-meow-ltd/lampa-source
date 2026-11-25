@@ -1,0 +1,50 @@
+{
+  "index": 16,
+  "route": "GET /api/bookmarks/changelog",
+  "request": {
+    "method": "GET",
+    "path": "/api/bookmarks/changelog?since=0",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "profile": "1"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"version\":13,\"changelog\":[{\"action\":\"add\",\"id\":1,\"type\":\"film\",\"card_id\":1001,\"data\":\"{\\\"id\\\":1001,\\\"synthetic\\\":true,\\\"title\\\":\\\"Golden Fixture Card 1001\\\",\\\"year\\\":2018}\",\"updated_at\":\"<ts>\"},{\"action\":\"add\",\"id\":2,\"type\":\"film\",\"card_id\":1002,\"data\":\"{\\\"id\\\":1002,\\\"synthetic\\\":true,\\\"title\\\":\\\"Golden Fixture Card 1002\\\",\\\"year\\\":2019}\",\"updated_at\":\"<ts>\"},{\"action\":\"add\",\"id\":3,\"type\":\"film\",\"card_id\":1003,\"data\":\"{\\\"id\\\":1003,\\\"synthetic\\\":true,\\\"title\\\":\\\"Golden Fixture Card 1003\\\",\\\"year\\\":2020}\",\"updated_at\":\"<ts>\"},{\"action\":\"add\",\"id\":4,\"type\":\"cartoon\",\"card_id\":1004,\"data\":\"{\\\"id\\\":1004,\\\"synthetic\\\":true,\\\"title\\\":\\\"Golden Fixture Card 1004\\\",\\\"year\\\":2021}\",\"updated_at\":\"<ts>\"},{\"action\":\"add\",\"id\":5,\"type\":\"cartoon\",\"card_id\":1005,\"data\":\"{\\\"id\\\":1005,\\\"synthetic\\\":true,\\\"title\\\":\\\"Golden Fixture Card 1005\\\",\\\"year\\\":2022}\",\"updated_at\":\"<ts>\"},{\"action\":\"add\",\"id\":6,\"type\":\"game\",\"card_id\":1006,\"data\":\"{\\\"id\\\":1006,\\\"synthetic\\\":true,\\\"title\\\":\\\"Golden Fixture Card 1006\\\",\\\"year\\\":2023}\",\"updated_at\":\"<ts>\"},{\"action\":\"update\",\"entity_id\":1,\"updated_at\":\"<ts>\"}]}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R3",
+    "R8"
+  ],
+  "note": "version = MAX(bookmark_events.id) for the profile"
+}

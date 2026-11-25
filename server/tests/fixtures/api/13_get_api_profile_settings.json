@@ -1,0 +1,49 @@
+{
+  "index": 13,
+  "route": "GET /api/profile/settings",
+  "request": {
+    "method": "GET",
+    "path": "/api/profile/settings",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "profile": "1"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"secuses\":true,\"value\":{\"cinema_mode\":\"golden\",\"last_device\":\"golden-device-0001\",\"watch_progress\":\"1234\"}}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "profile comes from the `profile` header; payload uses `secuses`"
+}

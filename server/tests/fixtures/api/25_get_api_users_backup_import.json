@@ -1,0 +1,48 @@
+{
+  "index": 25,
+  "route": "GET /api/users/backup/import",
+  "request": {
+    "method": "GET",
+    "path": "/api/users/backup/import",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"secuses\":true,\"data\":{\"golden\":true,\"items\":[1,2,3],\"note\":\"synthetic backup\"}}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "QUIRK: `import` is the read side (inverted vs. the name)"
+}

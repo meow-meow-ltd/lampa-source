@@ -1,0 +1,52 @@
+{
+  "index": 5,
+  "route": "PUT /api/settings",
+  "request": {
+    "method": "PUT",
+    "path": "/api/settings",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "content-type": "application/json"
+    },
+    "cookies": [
+      "auth_token"
+    ],
+    "body": {
+      "key": "torrserver_url",
+      "value": "http://synthetic-updated.invalid:9091"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"success\":true}"
+  },
+  "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "mutates the synthetic settings row read back by fixture 07"
+}

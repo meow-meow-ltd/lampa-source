@@ -1,0 +1,55 @@
+{
+  "index": 7,
+  "route": "POST /api/values",
+  "request": {
+    "method": "POST",
+    "path": "/api/values",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "content-type": "application/json"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": {
+      "keys": [
+        "menu_data",
+        "admin_password",
+        "torrserver_url"
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"admin_password\":null,\"menu_data\":\"1\",\"torrserver_url\":\"http://synthetic-updated.invalid:9091\"}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "invisible keys come back as null (admin_password is not leaked)"
+}

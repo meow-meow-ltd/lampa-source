@@ -1,0 +1,51 @@
+{
+  "index": 24,
+  "route": "POST /api/users/backup/export",
+  "request": {
+    "method": "POST",
+    "path": "/api/users/backup/export",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "content-type": "application/json"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": {
+      "data": "{\"golden\":true,\"items\":[1,2,3],\"note\":\"synthetic backup\"}"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"secuses\":true}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "QUIRK: `export` is the write side and answers {secuses: true}"
+}

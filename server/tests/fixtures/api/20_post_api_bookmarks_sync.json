@@ -1,0 +1,52 @@
+{
+  "index": 20,
+  "route": "POST /api/bookmarks/sync",
+  "request": {
+    "method": "POST",
+    "path": "/api/bookmarks/sync",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "profile": "1",
+      "content-type": "application/json"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": {
+      "data": "{\"cartoon\":[{\"id\":1004,\"synthetic\":true,\"title\":\"Golden Fixture Card 1004\"}],\"film\":[{\"id\":1001,\"synthetic\":true,\"title\":\"Golden Fixture Card 1001\"},{\"id\":1002,\"synthetic\":true,\"title\":\"Golden Fixture Card 1002\"}],\"game\":[{\"id\":9007,\"synthetic\":true,\"title\":\"Golden Fixture Card 9007\"}]}"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"secuses\":true}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "replaces all bookmarks of the profile inside a transaction"
+}

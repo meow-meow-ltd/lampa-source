@@ -1,0 +1,48 @@
+{
+  "index": 6,
+  "route": "DELETE /api/settings/{key}",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/settings/head_notice",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*"
+    },
+    "cookies": [
+      "auth_token"
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"success\":true}"
+  },
+  "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "legacy takes the key from the last path segment"
+}

@@ -1,0 +1,54 @@
+{
+  "index": 17,
+  "route": "POST /api/bookmarks/add",
+  "request": {
+    "method": "POST",
+    "path": "/api/bookmarks/add",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "profile": "1",
+      "content-type": "application/json"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": {
+      "type": "film",
+      "card_id": 9001,
+      "data": "{\"id\":9001,\"synthetic\":true,\"title\":\"Golden Fixture Card 9001\"}"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"secuses\":true}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "adds a bookmark plus an `add` changelog event"
+}

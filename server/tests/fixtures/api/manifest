@@ -1,0 +1,382 @@
+{
+  "schema": "lampa-golden-fixtures/1",
+  "route_count": 27,
+  "generator": "deploy/scripts/capture_api_golden.py",
+  "builder": "deploy/scripts/make_synthetic_db.py",
+  "capture": {
+    "image": "ghcr.io/meow-meow-ltd/lampa-source@sha256:d678c142ba58ff1707f5081a73c8b85393e75c36638754b1a6873fbffc21add7",
+    "base_url": "http://127.0.0.1:9121 (throwaway container, never 9119)",
+    "database": "synthetic SQLite v7, deterministic seed, no real data",
+    "request_order": "fixed, index 1..27",
+    "teardown": "docker rm -f -v + work directory removed"
+  },
+  "normalization_rules": [
+    {
+      "id": "R1",
+      "rule": "response header Date -> \"<date>\""
+    },
+    {
+      "id": "R2",
+      "rule": "response Set-Cookie value -> \"<redacted>\" (auth_token never stored)"
+    },
+    {
+      "id": "R3",
+      "rule": "timestamp fields (created_at/updated_at/last_attempt_at/last_seen_at/blocked_until/first_attempt_at) -> \"<ts>\""
+    },
+    {
+      "id": "R4",
+      "rule": "ip fields -> \"<ip>\" (docker gateway address is environment dependent)"
+    },
+    {
+      "id": "R5",
+      "rule": "settings rows keyed admin_password/admin_token -> value \"***\""
+    },
+    {
+      "id": "R6",
+      "rule": "secret fields (admin_password, admin_token, device_token, auth_token, password, pin, totp, token, session, secret) -> \"***\""
+    },
+    {
+      "id": "R7",
+      "rule": "any 64-hex token in the body -> \"***\""
+    },
+    {
+      "id": "R8",
+      "rule": "request Cookie header -> cookie names only, values \"<redacted>\""
+    },
+    {
+      "id": "R9",
+      "rule": "response Content-Length recomputed over the normalized body (legacy API answers are chunked, so this normally does not fire)"
+    }
+  ],
+  "routes": [
+    {
+      "index": 1,
+      "route": "POST /api/pin/verify",
+      "file": "01_post_api_pin_verify.json",
+      "method": "POST",
+      "path": "/api/pin/verify",
+      "auth": "no cookies",
+      "sanitization": [
+        "R1",
+        "R6"
+      ]
+    },
+    {
+      "index": 2,
+      "route": "GET /api/admin/devices",
+      "file": "02_get_api_admin_devices.json",
+      "method": "GET",
+      "path": "/api/admin/devices",
+      "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+      "sanitization": [
+        "R1",
+        "R3",
+        "R4",
+        "R8"
+      ]
+    },
+    {
+      "index": 3,
+      "route": "POST /api/admin/device/action",
+      "file": "03_post_api_admin_device_action.json",
+      "method": "POST",
+      "path": "/api/admin/device/action",
+      "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 4,
+      "route": "GET /api/settings",
+      "file": "04_get_api_settings.json",
+      "method": "GET",
+      "path": "/api/settings",
+      "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+      "sanitization": [
+        "R1",
+        "R5",
+        "R8"
+      ]
+    },
+    {
+      "index": 5,
+      "route": "PUT /api/settings",
+      "file": "05_put_api_settings.json",
+      "method": "PUT",
+      "path": "/api/settings",
+      "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 6,
+      "route": "DELETE /api/settings/{key}",
+      "file": "06_delete_api_settings_key.json",
+      "method": "DELETE",
+      "path": "/api/settings/head_notice",
+      "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 7,
+      "route": "POST /api/values",
+      "file": "07_post_api_values.json",
+      "method": "POST",
+      "path": "/api/values",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 8,
+      "route": "GET /api/value",
+      "file": "08_get_api_value.json",
+      "method": "GET",
+      "path": "/api/value?key=admin_password",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 9,
+      "route": "GET /api/profiles/all",
+      "file": "09_get_api_profiles_all.json",
+      "method": "GET",
+      "path": "/api/profiles/all",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 10,
+      "route": "POST /api/profiles/create",
+      "file": "10_post_api_profiles_create.json",
+      "method": "POST",
+      "path": "/api/profiles/create",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 11,
+      "route": "POST /api/profiles/update",
+      "file": "11_post_api_profiles_update.json",
+      "method": "POST",
+      "path": "/api/profiles/update",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 12,
+      "route": "POST /api/profiles/delete",
+      "file": "12_post_api_profiles_delete.json",
+      "method": "POST",
+      "path": "/api/profiles/delete",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 13,
+      "route": "GET /api/profile/settings",
+      "file": "13_get_api_profile_settings.json",
+      "method": "GET",
+      "path": "/api/profile/settings",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 14,
+      "route": "POST /api/profile/settings",
+      "file": "14_post_api_profile_settings.json",
+      "method": "POST",
+      "path": "/api/profile/settings",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 15,
+      "route": "GET /api/bookmarks/dump",
+      "file": "15_get_api_bookmarks_dump.json",
+      "method": "GET",
+      "path": "/api/bookmarks/dump",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R3",
+        "R8"
+      ]
+    },
+    {
+      "index": 16,
+      "route": "GET /api/bookmarks/changelog",
+      "file": "16_get_api_bookmarks_changelog.json",
+      "method": "GET",
+      "path": "/api/bookmarks/changelog?since=0",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R3",
+        "R8"
+      ]
+    },
+    {
+      "index": 17,
+      "route": "POST /api/bookmarks/add",
+      "file": "17_post_api_bookmarks_add.json",
+      "method": "POST",
+      "path": "/api/bookmarks/add",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 18,
+      "route": "POST /api/bookmarks/remove",
+      "file": "18_post_api_bookmarks_remove.json",
+      "method": "POST",
+      "path": "/api/bookmarks/remove",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 19,
+      "route": "POST /api/bookmarks/clear",
+      "file": "19_post_api_bookmarks_clear.json",
+      "method": "POST",
+      "path": "/api/bookmarks/clear",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 20,
+      "route": "POST /api/bookmarks/sync",
+      "file": "20_post_api_bookmarks_sync.json",
+      "method": "POST",
+      "path": "/api/bookmarks/sync",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 21,
+      "route": "GET /api/timeline/dump",
+      "file": "21_get_api_timeline_dump.json",
+      "method": "GET",
+      "path": "/api/timeline/dump",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 22,
+      "route": "GET /api/timeline/changelog",
+      "file": "22_get_api_timeline_changelog.json",
+      "method": "GET",
+      "path": "/api/timeline/changelog?since=0",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 23,
+      "route": "POST /api/timeline/update",
+      "file": "23_post_api_timeline_update.json",
+      "method": "POST",
+      "path": "/api/timeline/update",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 24,
+      "route": "POST /api/users/backup/export",
+      "file": "24_post_api_users_backup_export.json",
+      "method": "POST",
+      "path": "/api/users/backup/export",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 25,
+      "route": "GET /api/users/backup/import",
+      "file": "25_get_api_users_backup_import.json",
+      "method": "GET",
+      "path": "/api/users/backup/import",
+      "auth": "cookie device_token (issued by fixture 01)",
+      "sanitization": [
+        "R1",
+        "R8"
+      ]
+    },
+    {
+      "index": 26,
+      "route": "POST /admin/login",
+      "file": "26_post_admin_login.json",
+      "method": "POST",
+      "path": "/admin/login",
+      "auth": "no cookies",
+      "sanitization": [
+        "R1",
+        "R2",
+        "R6"
+      ]
+    },
+    {
+      "index": 27,
+      "route": "POST /admin/logout",
+      "file": "27_post_admin_logout.json",
+      "method": "POST",
+      "path": "/admin/logout",
+      "auth": "no cookies",
+      "sanitization": [
+        "R1"
+      ]
+    }
+  ]
+}

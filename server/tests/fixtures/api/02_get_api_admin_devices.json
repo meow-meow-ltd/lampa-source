@@ -1,0 +1,50 @@
+{
+  "index": 2,
+  "route": "GET /api/admin/devices",
+  "request": {
+    "method": "GET",
+    "path": "/api/admin/devices",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*"
+    },
+    "cookies": [
+      "auth_token"
+    ],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "[{\"id\":1,\"device_id\":\"golden-device-0001\",\"ip\":\"<ip>\",\"user_agent\":\"lampa-golden/1.0\",\"status\":\"allowed\",\"attempts\":0,\"last_attempt_at\":\"<ts>\",\"blocked_until\":null,\"last_seen_at\":\"<ts>\"},{\"id\":2,\"device_id\":\"golden-device-0002\",\"ip\":\"<ip>\",\"user_agent\":\"lampa-golden/1.0\",\"status\":\"blocked\",\"attempts\":5,\"last_attempt_at\":\"<ts>\",\"blocked_until\":\"<ts>\",\"last_seen_at\":null},{\"id\":3,\"device_id\":\"golden-device-0003\",\"ip\":\"<ip>\",\"user_agent\":\"lampa-golden/1.0\",\"status\":\"pending\",\"attempts\":2,\"last_attempt_at\":\"<ts>\",\"blocked_until\":null,\"last_seen_at\":\"<ts>\"}]"
+  },
+  "auth": "cookie auth_token (admin, from setup POST /admin/login)",
+  "sanitization": [
+    "R1",
+    "R3",
+    "R4",
+    "R8"
+  ],
+  "note": "admin cookie required; device_access.ip/user_agent/timestamps masked"
+}

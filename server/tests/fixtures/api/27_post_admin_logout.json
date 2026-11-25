@@ -1,0 +1,49 @@
+{
+  "index": 27,
+  "route": "POST /admin/logout",
+  "request": {
+    "method": "POST",
+    "path": "/admin/logout",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*"
+    },
+    "cookies": [],
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Set-Cookie",
+        "auth_token=; Path=/; HttpOnly; Max-Age=0"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"success\":true}"
+  },
+  "auth": "no cookies",
+  "sanitization": [
+    "R1"
+  ],
+  "note": "clears auth_token (empty value, Max-Age=0; kept verbatim)"
+}

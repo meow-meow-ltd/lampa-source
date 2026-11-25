@@ -1,0 +1,50 @@
+{
+  "index": 1,
+  "route": "POST /api/pin/verify",
+  "request": {
+    "method": "POST",
+    "path": "/api/pin/verify",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "content-type": "application/json"
+    },
+    "cookies": [],
+    "body": {
+      "pin": "***",
+      "device_id": "golden-device-0001"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"ok\":true,\"device_token\":\"***\"}"
+  },
+  "auth": "no cookies",
+  "sanitization": [
+    "R1",
+    "R6"
+  ],
+  "note": "issues a random device_token; TOTP code is masked (R6)"
+}

@@ -1,0 +1,79 @@
+name: ci
+
+# PR-verify style CI skeleton (plan §11.2 / docs/decisions.md W0-4, W0-5).
+#
+# W0: this workflow is committed but NEVER executed remotely — push/PR is
+# forbidden in W0 and a remote Actions run needs the owner's decision (О11).
+# The gate used by G1 is the local scripts/ci/run.sh, which mirrors these six
+# steps 1:1.  No push-to-main deploy, no deploy job, no secret.
+#
+# Steps: fmt, clippy -D warnings, cargo test, golden /api/* contract, frontend
+# build, and the Vitest W0-4 baseline guard.  Cargo deps and target are cached.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install npm dependencies (lockfile, cache-backed)
+        run: npm ci
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            server/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('server/Cargo.lock', 'server/rust-toolchain.toml') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Show Rust toolchain (from server/rust-toolchain.toml)
+        working-directory: server
+        run: |
+          rustup show active-toolchain
+          cargo --version
+
+      - name: 1. fmt
+        working-directory: server
+        run: cargo fmt --check
+
+      - name: 2. clippy
+        working-directory: server
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: 3. test
+        working-directory: server
+        run: cargo test
+
+      - name: 4. contract (golden 27 /api/*, T03)
+        run: python3 deploy/scripts/capture_api_golden.py --check
+
+      - name: 5. frontend build
+        run: npm run build
+
+      - name: 6. vitest baseline (W0-4 guard)
+        run: python3 scripts/ci/vitest_baseline_guard.py --run

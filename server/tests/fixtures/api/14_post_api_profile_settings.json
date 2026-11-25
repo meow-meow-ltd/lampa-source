@@ -1,0 +1,53 @@
+{
+  "index": 14,
+  "route": "POST /api/profile/settings",
+  "request": {
+    "method": "POST",
+    "path": "/api/profile/settings",
+    "headers": {
+      "user-agent": "lampa-golden/1.0",
+      "accept": "*/*",
+      "profile": "1",
+      "content-type": "application/json"
+    },
+    "cookies": [
+      "device_token"
+    ],
+    "body": {
+      "key": "golden_flag",
+      "value": "on"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Date",
+        "<date>"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Keep-Alive",
+        "timeout=5"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ]
+    ],
+    "body": "{\"secuses\":true}"
+  },
+  "auth": "cookie device_token (issued by fixture 01)",
+  "sanitization": [
+    "R1",
+    "R8"
+  ],
+  "note": "upsert keyed by (profile_id, key)"
+}
