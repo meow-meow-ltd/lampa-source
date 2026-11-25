@@ -1,0 +1,20 @@
+[package]
+name = "lampa-server"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.100"
+publish = false
+description = "Lampa Rust server (P0 skeleton: composition root, /healthz, graceful shutdown)"
+
+[dependencies]
+# Versions verified in the P0 research environment (review/inv/ S-files);
+# Cargo.lock is committed and CI builds with --locked.
+axum = "=0.8.9"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+tokio = { version = "=1.54.1", features = ["full"] }
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }
+
+[dev-dependencies]
+tower = { version = "=0.5.3", features = ["util"] }

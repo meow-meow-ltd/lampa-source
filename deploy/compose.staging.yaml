@@ -1,0 +1,38 @@
+# Lampa Node staging stand (wave W0 / T02).
+#
+# Separate Compose project, container, port and bind mount. Production
+# (container "lampa", port 9118, /opt/lampa/data, /opt/lampa/compose.yaml)
+# is never referenced from this file and is never mounted here.
+#
+# The image is the *pinned digest* of the production image that was deployed on
+# 2026-11-24 (RepoDigests[0] of ghcr.io/meow-meow-ltd/lampa-source:latest,
+# image id sha256:d678c142...21add7). A digest is immutable; "latest" is not.
+# pull_policy: never keeps the stand offline and makes an accidental pull of a
+# moving tag impossible.
+#
+# Deliberate override (rehearsal only):
+#   LAMPA_STAGING_IMAGE=ghcr.io/meow-meow-ltd/lampa-source@sha256:<digest> \
+#     docker compose -p lampa-staging -f deploy/compose.staging.yaml up -d
+name: lampa-staging
+
+services:
+  lampa-staging:
+    image: ${LAMPA_STAGING_IMAGE:-ghcr.io/meow-meow-ltd/lampa-source@sha256:d678c142ba58ff1707f5081a73c8b85393e75c36638754b1a6873fbffc21add7}
+    container_name: lampa-staging
+    restart: "no"
+    pull_policy: never            # image must already be in the local store; never pull :latest here
+    ports:
+      - "127.0.0.1:9119:3000"     # loopback only; prod is 9118
+    env_file:
+      - /opt/lampa/staging-data/env.staging   # staging-only test values, mode 0600, outside git
+    environment:
+      DB_PATH: /data/database.sqlite
+    volumes:
+      - /opt/lampa/staging-data:/data          # DB *copy*; /opt/lampa/data is never mounted
+    mem_limit: 2g
+    cpus: 4.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"

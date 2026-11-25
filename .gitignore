@@ -25,3 +25,4 @@ PROGRESS.md
 TASKS.md
 database.sqlite
 .env
+server/target/
