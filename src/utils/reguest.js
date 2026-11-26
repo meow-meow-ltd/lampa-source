@@ -557,8 +557,7 @@ function Request(){
         let originalError = data.error;
         data.error = (jqXHR, exception) => {
             if (jqXHR.status === 401 && jqXHR.responseJSON && (jqXHR.responseJSON.error === 'token_required' || jqXHR.responseJSON.error === 'invalid_token')) {
-                document.cookie = "device_token=;path=/;expires=Thu, 01 Jan 1970 00:00:00 UTC" // Clear invalid token cookie
-                window.location.reload() // Force PIN Gate re-validation
+                window.location.reload() // Server cleared the session; reload to re-validate
                 return
             }
             if (originalError) originalError(jqXHR, exception)

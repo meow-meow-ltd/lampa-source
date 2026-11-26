@@ -11,9 +11,13 @@
 //!   The legacy schema has no FK constraints (`foreign_keys=OFF`), so
 //!   `bookmarks`/`profile_settings`/`timeline*` rows intentionally become orphans.
 
-// The repository API is the T04 deliverable consumed by the T07/T09 HTTP
-// layers (not wired yet); unit tests exercise it directly.
+// The repository API is the T04 deliverable consumed by the T09 HTTP layer
+// (`http::api::profiles`) and by the per-profile settings / user-backup
+// repositories below; a few diagnostics helpers remain unwired.
 #![allow(dead_code)]
+
+pub mod profile_settings;
+pub mod users_backup;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

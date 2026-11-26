@@ -26,3 +26,5 @@ TASKS.md
 database.sqlite
 .env
 server/target/
+.dart_tool/
+__pycache__/

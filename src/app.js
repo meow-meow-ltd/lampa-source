@@ -786,11 +786,10 @@ function showApp() {
  * Проверка устройства
  */
 function checkDevice() {
-    if (document.cookie.match(/(?:^|; )device_token=([^;]*)/)) {
-            loadTask()
-        } else {
-            PINGate.show(loadTask)
-        }
+    fetch('/api/auth/session', { credentials: 'same-origin', cache: 'no-store' })
+        .then((response) => response.json())
+        .then((res) => { if (res && res.paired) loadTask(); else PINGate.show(loadTask) })
+        .catch(() => PINGate.show(loadTask))
 }
 
 /**

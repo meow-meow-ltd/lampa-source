@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use crate::auth::AuthService;
 use crate::config::Config;
 use crate::db::{Database, SchemaGuardError};
 
@@ -45,15 +46,20 @@ impl DbState {
 pub struct AppState {
     config: Arc<Config>,
     db: DbState,
+    auth: Arc<AuthService>,
 }
 
 impl AppState {
     /// Builds the state from the process configuration and the database state.
     pub fn new(config: Config, db: DbState) -> Self {
-        Self {
-            config: Arc::new(config),
-            db,
-        }
+        let config = Arc::new(config);
+        // The auth service keeps its own database handle (clone shares the pool);
+        // a failed startup guard leaves it `None`, so the guard fails closed.
+        let auth = Arc::new(AuthService::new(
+            Arc::clone(&config),
+            db.database().cloned(),
+        ));
+        Self { config, db, auth }
     }
 
     /// Read-only configuration snapshot.
@@ -64,6 +70,11 @@ impl AppState {
     /// Database readiness state.
     pub fn db(&self) -> &DbState {
         &self.db
+    }
+
+    /// Authentication service (TOTP, device/admin cookies, session, rate limits).
+    pub fn auth(&self) -> &AuthService {
+        &self.auth
     }
 }
 
@@ -85,5 +96,9 @@ mod tests {
             state.db().unavailable_reason().map(SchemaGuardError::code),
             Some("missing_file")
         );
+        // The auth service inherits the failed guard (fail closed) and keeps the
+        // redacted configuration.
+        assert!(state.auth().legacy_cookie_enabled());
+        assert!(state.auth().totp_verifier().is_err());
     }
 }

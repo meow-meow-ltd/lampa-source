@@ -199,7 +199,6 @@ function verify(callback) {
     
     network.silent(window.lampa_settings.account_provider === 'local' ? '/api/pin/verify' : 'https://lampa.mx/api/pin/verify', (res) => {
         if (res.ok) {
-            document.cookie = "device_token=" + res.device_token + ";path=/;max-age=" + (60*60*24*365)
             hide()
             callback()
         } else {

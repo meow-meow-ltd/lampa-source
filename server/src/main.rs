@@ -1,10 +1,14 @@
 //! Composition root for the `lampa-server` binary.
 //!
-//! W0 scope: environment configuration, tracing, the SQLite layer with its
-//! fail-closed schema guard, the Axum router with `GET /healthz` + `GET /readyz`,
-//! and graceful shutdown on SIGTERM/SIGINT. Auth, static/media/torrent services
-//! arrive in later waves.
+//! Scope: environment configuration (including the redacted `TOTP_SECRET` and
+//! the transitional auth switch `DEVICE_LEGACY_COOKIE`), tracing, the SQLite
+//! layer with its fail-closed schema guard, the Axum router with `/healthz`,
+//! `/readyz` and the W1 API registry under the T10 auth guard, and graceful
+//! shutdown on SIGTERM/SIGINT. Static/media/torrent services arrive in later
+//! waves; the listener is served with connect info so PIN rate limiting can see
+//! the client IP.
 
+mod auth;
 mod config;
 mod db;
 mod http;
@@ -35,6 +39,15 @@ type ServerResult = Result<Result<(), std::io::Error>, JoinError>;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Maintenance CLI dispatch (W1/T11): `backup`/`restore`/`check` run before
+    // any server configuration, so the operational commands never touch the
+    // HTTP stack. `run_cli` wraps `db::backup::cli` with tracing, the stdout
+    // JSON report and exit codes (0 success, 1 failure, 2 usage).
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if db::backup::is_cli_invocation(&args) {
+        std::process::exit(db::backup::run_cli(&args));
+    }
+
     let config = Config::from_env()?;
     init_tracing(&config)?;
 
@@ -75,12 +88,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let app = http::router(AppState::new(config, db_state));
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let mut server = tokio::spawn(async move {
-        axum::serve(listener, app)
-            .with_graceful_shutdown(async move {
-                // A dropped sender also releases the wait; both mean "stop".
-                let _ = shutdown_rx.await;
-            })
-            .await
+        // With connect info so the auth layer can resolve the client IP for the
+        // PIN rate limit (trusted-proxy headers are only honoured for private
+        // peers; see `auth::rate_limit`/`http::middleware::client_ip`).
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .with_graceful_shutdown(async move {
+            // A dropped sender also releases the wait; both mean "stop".
+            let _ = shutdown_rx.await;
+        })
+        .await
     });
 
     let signal = tokio::select! {

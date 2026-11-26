@@ -10,6 +10,7 @@
 //! This module is wired into the composition root (`crate::main`) and owns no
 //! HTTP policy: the settings/profiles repositories below are consumed by T07/T09.
 
+pub mod backup;
 pub mod error;
 pub mod guard;
 mod options;

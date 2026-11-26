@@ -2,28 +2,34 @@
 # scripts/ci/run.sh — local CI chain for Lampa P0/W0.
 #
 # Why local: W0 forbids push/PR, so "CI is green" means this script exits 0
-# (docs/decisions.md W0-5).  .github/workflows/ci.yml mirrors these six steps
-# but is not executed in W0 (no remote Actions run, see О11).
+# (docs/decisions.md W0-5).  .github/workflows/ci.yml mirrors the six original
+# gates but is not executed in W0 (no remote Actions run, see О11) and has no
+# `backup-timing` step (the heavy budget run is local-only).
 #
 # Steps (each prints one PASS/FAIL/SKIP line; any FAIL makes the exit code 1):
-#   1. fmt       cargo fmt --check
-#   2. clippy    cargo clippy --all-targets -- -D warnings
-#   3. test      cargo test
-#   4. contract  python3 deploy/scripts/capture_api_golden.py --check  (T03)
-#   5. frontend  npm run build (gulp)
-#   6. vitest    npx vitest run parsed against the committed W0-4 baseline
+#   1. fmt           cargo fmt --check
+#   2. clippy        cargo clippy --all-targets -- -D warnings
+#   3. test          cargo test
+#   4. backup-timing cargo test --release --bins -- --ignored --test-threads=1
+#                    (the two heavy 8 MiB backup/restore timing tests, one at a
+#                    time, /tmp on a container-local tmpfs; the PASS/FAIL line
+#                    prints the measured ms)
+#   5. contract      python3 deploy/scripts/capture_api_golden.py --check  (T03)
+#   6. frontend      npm run build (gulp)
+#   7. vitest        npx vitest run parsed against the committed W0-4 baseline
 #
-# The host has no Rust toolchain, so steps 1-3 always run inside
+# The host has no Rust toolchain, so steps 1-4 always run inside
 # lampa-rust-builder:1.100.0 with the exact docker recipe from server/README.md.
 # Nothing is installed on the host.
 #
 # Flags:
-#   --skip-rust           skip fmt/clippy/test (e.g. while the crate is being written)
+#   --skip-rust           skip fmt/clippy/test/backup-timing (e.g. while the crate
+#                         is being written)
 #   --skip-frontend       skip the frontend build AND the vitest baseline (both JS)
 #   --skip-contract       skip the golden contract check
 #   --strict              missing T03 contract artifacts are a FAIL (G1 run);
 #                         without it the contract step auto-SKIPs when T03 is absent
-#   --list                list the six steps and exit 0
+#   --list                list the seven steps and exit 0
 #   --baseline-self-test  prove the vitest baseline guard rejects an injected
 #                         extra failure and exit 0; does not run vitest
 #   -h, --help            show this help
@@ -68,15 +74,17 @@ usage() { awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' 
 list_steps() {
     cat <<'EOF'
 Local CI steps (in order):
-  1. fmt        cargo fmt --check                                   [--skip-rust skips]
-  2. clippy     cargo clippy --all-targets -- -D warnings           [--skip-rust skips]
-  3. test       cargo test                                          [--skip-rust skips]
-  4. contract   python3 deploy/scripts/capture_api_golden.py --check [auto-SKIP if T03 absent; --strict fails]
-  5. frontend   npm run build (gulp)                                 [--skip-frontend skips]
-  6. vitest     npx vitest run vs scripts/ci/baselines/vitest-baseline.json [--skip-frontend skips]
+  1. fmt           cargo fmt --check                                   [--skip-rust skips]
+  2. clippy        cargo clippy --all-targets -- -D warnings           [--skip-rust skips]
+  3. test          cargo test                                          [--skip-rust skips]
+  4. backup-timing cargo test --release --bins -- --ignored --test-threads=1
+                   (heavy 8 MiB backup ≤200 ms / restore ≤300 ms; serialized; tmpfs /tmp) [--skip-rust skips]
+  5. contract      python3 deploy/scripts/capture_api_golden.py --check [auto-SKIP if T03 absent; --strict fails]
+  6. frontend      npm run build (gulp)                                 [--skip-frontend skips]
+  7. vitest        npx vitest run vs scripts/ci/baselines/vitest-baseline.json [--skip-frontend skips]
 
 Cargo steps run in the lampa-rust-builder:1.100.0 container (server/README.md recipe).
-Default: all six steps, contract auto-detects T03 golden fixtures.
+Default: all seven steps, contract auto-detects T03 golden fixtures.
 EOF
 }
 
@@ -166,6 +174,55 @@ rust_step() {
         pass "$step" "$command (lampa-rust-builder:1.100.0, ${elapsed}s)"
     else
         fail "$step" "$command exited $rc (lampa-rust-builder:1.100.0, ${elapsed}s)"
+    fi
+}
+
+# Heavy 8 MiB backup/restore budget tests. They are `#[ignore]`d in
+# server/src/db/backup.rs: inside the default parallel `cargo test` the timing
+# competes with other test binaries and produces false >200 ms failures
+# (G2-02). This step runs only the ignored tests, in release, with
+# `--test-threads=1`, and reports the measured ms from --nocapture output.
+# The container gets a private tmpfs /tmp (`--tmpfs`) because this host shares
+# its disk with other containers/agents: overlay writeback injected 200-900 ms
+# spikes into the 8 MiB artefact fsync (measured, G2-02 repair). The tmpfs only
+# isolates the measurement environment; the test still creates a real 8 MiB v7
+# DB, runs the SQLite backup API, checks 0600/0700 + integrity/quick_check +
+# SHA-256, and asserts the unchanged 200/300 ms budgets.
+backup_timing_step() {
+    local step="backup-timing"
+    if [ "$SKIP_RUST" -eq 1 ]; then
+        skip "$step" "skipped by --skip-rust (heavy backup/restore timing not run)"
+        return
+    fi
+    if ! command -v docker >/dev/null 2>&1; then
+        fail "$step" "docker not found; the timing step requires the builder container (server/README.md)"
+        return
+    fi
+    if ! docker image inspect "$BUILDER_IMAGE" >/dev/null 2>&1; then
+        fail "$step" "docker image $BUILDER_IMAGE not found; build it with the one-time recipe in server/README.md"
+        return
+    fi
+    mkdir -p "$CARGO_CACHE_HOST" "$CARGO_TARGET_HOST" 2>/dev/null || true
+
+    local command="cargo test --release --bins -- --ignored --test-threads=1 --nocapture"  # /tmp = tmpfs (see above)
+    local log started elapsed rc backup_ms restore_ms heavy
+    log="$(mktemp)"
+    started=$SECONDS
+    run_in_container server "$command" --tmpfs /tmp:rw,size=256m 2>&1 | tee "$log"
+    rc=${PIPESTATUS[0]}
+    elapsed=$((SECONDS - started))
+    # The tests print `backup: N ms (≤200 ms)` (three samples) and
+    # `restore: N ms (≤300 ms)`; the first line is prefixed by the test name,
+    # so match the fragment anywhere on the line. The PASS/FAIL line reports
+    # all samples.
+    backup_ms="$(grep -oE 'backup: [0-9]+ ms' "$log" | sed -E 's/backup: ([0-9]+) ms/\1/' | paste -sd/ -)"
+    restore_ms="$(grep -oE 'restore: [0-9]+ ms' "$log" | sed -E 's/restore: ([0-9]+) ms/\1/' | paste -sd/ -)"
+    heavy="$(sed -nE 's/^test result: ok\. ([0-9]+) passed.*/\1/p' "$log" | head -n 1)"
+    rm -f "$log"
+    if [ "$rc" -eq 0 ]; then
+        pass "$step" "$command (${heavy:-?} heavy tests; backup ${backup_ms:-n/a} ms ≤200, restore ${restore_ms:-n/a} ms ≤300; ${elapsed}s)"
+    else
+        fail "$step" "$command exited $rc (backup ${backup_ms:-n/a} ms, restore ${restore_ms:-n/a} ms; ${elapsed}s)"
     fi
 }
 
@@ -319,6 +376,7 @@ vitest_step() {
 rust_step "fmt" "cargo fmt --check"
 rust_step "clippy" "cargo clippy --all-targets -- -D warnings"
 rust_step "test" "cargo test"
+backup_timing_step
 contract_step
 frontend_step
 vitest_step
